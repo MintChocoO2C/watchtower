@@ -15,7 +15,70 @@ browser.runtime.onMessage.addListener((request, sender) => {
     if (request.action === "vimium:openTab" && request.url) {
         return browser.tabs.create({ url: request.url, active: false });
     }
+
+    // Vimium: 탭 조작 (J/K/t/x/X/gt/gT)
+    if (request.action === "vimium:tabs") {
+        return handleVimiumTabOp(request.op, sender);
+    }
 });
+
+// === Vimium 닫은-탭 스택 (X 명령용 — sessions.restore 폴백) ===
+const wtTabUrlMap = new Map();   // tabId -> {url, title}
+const wtClosedStack = [];        // [{url, title}], 최신이 끝
+const WT_CLOSED_MAX = 25;
+
+browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if ((changeInfo.url || changeInfo.title) && tab.url) {
+        wtTabUrlMap.set(tabId, { url: tab.url, title: tab.title || "" });
+    }
+});
+
+browser.tabs.onRemoved.addListener((tabId) => {
+    const info = wtTabUrlMap.get(tabId);
+    wtTabUrlMap.delete(tabId);
+    if (info && info.url && !/^(about:|chrome:|safari-web-extension:)/.test(info.url)) {
+        wtClosedStack.push(info);
+        if (wtClosedStack.length > WT_CLOSED_MAX) wtClosedStack.shift();
+    }
+});
+
+async function handleVimiumTabOp(op, sender) {
+    try {
+        if (op === "next" || op === "prev") {
+            const tabs = await browser.tabs.query({ currentWindow: true });
+            if (tabs.length < 2) return;
+            const active = tabs.findIndex(t => t.active);
+            if (active < 0) return;
+            const target = op === "next"
+                ? (active + 1) % tabs.length
+                : (active - 1 + tabs.length) % tabs.length;
+            await browser.tabs.update(tabs[target].id, { active: true });
+        } else if (op === "new") {
+            await browser.tabs.create({});
+        } else if (op === "close") {
+            if (sender?.tab?.id != null) {
+                await browser.tabs.remove(sender.tab.id);
+            }
+        } else if (op === "restore") {
+            // 1차: 브라우저 네이티브 sessions.restore
+            try {
+                if (browser.sessions?.restore) {
+                    await browser.sessions.restore();
+                    return;
+                }
+            } catch (e) {
+                console.warn("[WT] sessions.restore failed, falling back:", e?.message);
+            }
+            // 2차: 자체 스택에서 복원
+            const last = wtClosedStack.pop();
+            if (last?.url) {
+                await browser.tabs.create({ url: last.url, active: true });
+            }
+        }
+    } catch (e) {
+        console.error("[WT] vimium:tabs error:", op, e?.name, e?.message);
+    }
+}
 
 // storage 변경 → 활성 탭의 content script로 relay
 // (Safari에서 content script의 storage.onChanged가 신뢰성 없음)

@@ -38,5 +38,5 @@
         "default_icon": "images/toolbar-icon.svg"
     },
 
-    "permissions": [ "activeTab", "storage", "contextMenus", "clipboardWrite", "scripting" ]
+    "permissions": [ "activeTab", "storage", "contextMenus", "clipboardWrite", "scripting", "tabs", "sessions" ]
 }

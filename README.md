@@ -55,6 +55,16 @@ Toggle Vimium ON in the popup. The HUD in the bottom-right shows current mode an
 
 Use a number prefix to repeat: `5j` scrolls down 5 × step.
 
+#### Tabs
+
+| Key | Action |
+|---|---|
+| `J` / `gT` | Previous tab (wraps around) |
+| `K` / `gt` | Next tab (wraps around) |
+| `t` | New tab |
+| `x` | Close current tab |
+| `X` | Reopen recently closed tab |
+
 #### Link Hints
 
 | Key | Action |
@@ -97,17 +107,6 @@ The extension uses three execution contexts:
 - A MAIN-world script (`page-script.js`) — runs in the page's JS context for APIs the page exposes
 
 Storage changes are relayed by the background script because Safari's `storage.onChanged` is unreliable inside content scripts.
-
-## Roadmap
-
-Vimium phases:
-
-- [x] **Phase 1** — Mode management, key sequence buffer, count prefix, HUD
-- [x] **Phase 2** — Scroll, navigation, history, reload
-- [x] **Phase 3** — Link hints (`f` / `F` / `yf`) with Shadow DOM support
-- [ ] **Phase 4** — Page-internal find (`/`, `n` / `N`) + Visual mode
-- [ ] **Phase 5** — Tab manipulation (`J` / `K`, `t`, `x`, `X`)
-- [ ] **Phase 6** — Per-site disable, custom keymap, Vomnibar
 
 ## License
 

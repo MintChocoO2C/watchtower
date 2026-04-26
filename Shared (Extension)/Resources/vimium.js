@@ -156,6 +156,18 @@
     // 리로드
     registerCommand("r", () => location.reload());
 
+    // === Phase 5: 탭 조작 (background.js로 라우팅) ===
+    function sendTabOp(op) {
+        browser.runtime.sendMessage({ action: "vimium:tabs", op }).catch(() => {});
+    }
+    registerCommand("J",  () => sendTabOp("prev"));
+    registerCommand("K",  () => sendTabOp("next"));
+    registerCommand("t",  () => sendTabOp("new"));
+    registerCommand("x",  () => sendTabOp("close"));
+    registerCommand("X",  () => sendTabOp("restore"));
+    registerCommand("gt", () => sendTabOp("next"));
+    registerCommand("gT", () => sendTabOp("prev"));
+
     // === Phase 3: 링크 힌트 ===
     const HINT_ALPHABET = "sadfjklewcmpgh";
     const CLICKABLE_SELECTOR = [
@@ -406,6 +418,9 @@
     // 시퀀스가 깨지면 이전 버퍼 버리고 새 키 단독으로 재시도 (예: gj → j 실행).
     function onKeyDown(e) {
         if (!enabled) return;
+
+        // 모디파이어 단독 keydown(예: Shift만) 은 무시 — 시퀀스 버퍼 깨뜨리지 않도록
+        if (e.key === "Shift" || e.key === "Control" || e.key === "Alt" || e.key === "Meta") return;
 
         const key = normalizeKey(e);
 
