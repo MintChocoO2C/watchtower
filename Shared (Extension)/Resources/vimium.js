@@ -156,6 +156,18 @@
     // 리로드
     registerCommand("r", () => location.reload());
 
+    // === Phase 5: 탭 조작 (background.js로 라우팅) ===
+    function sendTabOp(op) {
+        browser.runtime.sendMessage({ action: "vimium:tabs", op }).catch(() => {});
+    }
+    registerCommand("J",  () => sendTabOp("prev"));
+    registerCommand("K",  () => sendTabOp("next"));
+    registerCommand("t",  () => sendTabOp("new"));
+    registerCommand("x",  () => sendTabOp("close"));
+    registerCommand("X",  () => sendTabOp("restore"));
+    registerCommand("gt", () => sendTabOp("next"));
+    registerCommand("gT", () => sendTabOp("prev"));
+
     // === Phase 3: 링크 힌트 ===
     const HINT_ALPHABET = "sadfjklewcmpgh";
     const CLICKABLE_SELECTOR = [

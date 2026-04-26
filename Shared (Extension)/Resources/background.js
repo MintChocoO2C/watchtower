@@ -15,7 +15,41 @@ browser.runtime.onMessage.addListener((request, sender) => {
     if (request.action === "vimium:openTab" && request.url) {
         return browser.tabs.create({ url: request.url, active: false });
     }
+
+    // Vimium: 탭 조작 (J/K/t/x/X/gt/gT)
+    if (request.action === "vimium:tabs") {
+        return handleVimiumTabOp(request.op, sender);
+    }
 });
+
+async function handleVimiumTabOp(op, sender) {
+    try {
+        if (op === "next" || op === "prev") {
+            const tabs = await browser.tabs.query({ currentWindow: true });
+            if (tabs.length < 2) return;
+            const active = tabs.findIndex(t => t.active);
+            if (active < 0) return;
+            const target = op === "next"
+                ? (active + 1) % tabs.length
+                : (active - 1 + tabs.length) % tabs.length;
+            await browser.tabs.update(tabs[target].id, { active: true });
+        } else if (op === "new") {
+            await browser.tabs.create({});
+        } else if (op === "close") {
+            if (sender?.tab?.id != null) {
+                await browser.tabs.remove(sender.tab.id);
+            }
+        } else if (op === "restore") {
+            if (browser.sessions?.restore) {
+                await browser.sessions.restore();
+            } else {
+                console.warn("[WT] browser.sessions.restore unavailable in this Safari version");
+            }
+        }
+    } catch (e) {
+        console.error("[WT] vimium:tabs error:", op, e?.name, e?.message);
+    }
+}
 
 // storage 변경 → 활성 탭의 content script로 relay
 // (Safari에서 content script의 storage.onChanged가 신뢰성 없음)
