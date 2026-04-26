@@ -22,6 +22,26 @@ browser.runtime.onMessage.addListener((request, sender) => {
     }
 });
 
+// === Vimium 닫은-탭 스택 (X 명령용 — sessions.restore 폴백) ===
+const wtTabUrlMap = new Map();   // tabId -> {url, title}
+const wtClosedStack = [];        // [{url, title}], 최신이 끝
+const WT_CLOSED_MAX = 25;
+
+browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if ((changeInfo.url || changeInfo.title) && tab.url) {
+        wtTabUrlMap.set(tabId, { url: tab.url, title: tab.title || "" });
+    }
+});
+
+browser.tabs.onRemoved.addListener((tabId) => {
+    const info = wtTabUrlMap.get(tabId);
+    wtTabUrlMap.delete(tabId);
+    if (info && info.url && !/^(about:|chrome:|safari-web-extension:)/.test(info.url)) {
+        wtClosedStack.push(info);
+        if (wtClosedStack.length > WT_CLOSED_MAX) wtClosedStack.shift();
+    }
+});
+
 async function handleVimiumTabOp(op, sender) {
     try {
         if (op === "next" || op === "prev") {
@@ -40,10 +60,19 @@ async function handleVimiumTabOp(op, sender) {
                 await browser.tabs.remove(sender.tab.id);
             }
         } else if (op === "restore") {
-            if (browser.sessions?.restore) {
-                await browser.sessions.restore();
-            } else {
-                console.warn("[WT] browser.sessions.restore unavailable in this Safari version");
+            // 1차: 브라우저 네이티브 sessions.restore
+            try {
+                if (browser.sessions?.restore) {
+                    await browser.sessions.restore();
+                    return;
+                }
+            } catch (e) {
+                console.warn("[WT] sessions.restore failed, falling back:", e?.message);
+            }
+            // 2차: 자체 스택에서 복원
+            const last = wtClosedStack.pop();
+            if (last?.url) {
+                await browser.tabs.create({ url: last.url, active: true });
             }
         }
     } catch (e) {

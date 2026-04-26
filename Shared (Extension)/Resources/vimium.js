@@ -419,6 +419,9 @@
     function onKeyDown(e) {
         if (!enabled) return;
 
+        // 모디파이어 단독 keydown(예: Shift만) 은 무시 — 시퀀스 버퍼 깨뜨리지 않도록
+        if (e.key === "Shift" || e.key === "Control" || e.key === "Alt" || e.key === "Meta") return;
+
         const key = normalizeKey(e);
 
         // INSERT 모드: Esc만 처리
