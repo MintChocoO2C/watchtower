@@ -6,6 +6,106 @@
     <script type="module" src="popup.js"></script>
 </head>
 <body>
-    <strong>Hello World!</strong>
+    <div class="header">
+        <img class="header-icon" src="images/icon-48.png" alt="">
+        <div class="header-text">
+            <h1>Watchtower</h1>
+            <span class="header-sub" data-i18n="extension_description">Safari Extension</span>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header" data-i18n="sectionVideo">Video</div>
+        <div class="feature-row">
+            <div class="feature-info">
+                <span class="feature-label" data-i18n="autoPipLabel">Auto PiP</span>
+                <span class="feature-desc" data-i18n="autoPipDesc">Auto PiP on tab switch</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="auto-pip-toggle">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header" data-i18n="sectionYouTube">YouTube</div>
+        <div class="feature-row">
+            <div class="feature-info">
+                <span class="feature-label" data-i18n="ytMiniplayerLabel">YouTube Miniplayer</span>
+                <span class="feature-desc" data-i18n="ytMiniplayerDesc">Switch to miniplayer on logo click</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="yt-logo-miniplayer-toggle">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="feature-divider"></div>
+        <div class="feature-row">
+            <div class="feature-info">
+                <span class="feature-label" data-i18n="hideShortsLabel">Hide Shorts</span>
+                <span class="feature-desc" data-i18n="hideShortsDesc">Remove Shorts from home feed</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="yt-hide-shorts-toggle">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-header" data-i18n="sectionNavigation">Navigation</div>
+        <div class="feature-row">
+            <div class="feature-info">
+                <span class="feature-label" data-i18n="vimiumLabel">Vimium</span>
+                <span class="feature-desc" data-i18n="vimiumDesc">Vim-style keyboard navigation</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="vimium-toggle">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <div class="feature-sub" id="vimium-sub">
+            <div class="sub-row">
+                <span class="sub-label" data-i18n="vimiumScrollStepLabel">Scroll step</span>
+                <span class="sub-input">
+                    <input type="number" id="vimium-scroll-step" min="1" max="9999">
+                    <span class="sub-unit">px</span>
+                </span>
+            </div>
+            <div class="sub-row">
+                <span class="sub-label" data-i18n="vimiumScrollBehaviorLabel">Scroll style</span>
+                <span class="sub-input">
+                    <select id="vimium-scroll-behavior">
+                        <option value="smooth" data-i18n="vimiumBehaviorSmooth">Smooth</option>
+                        <option value="auto" data-i18n="vimiumBehaviorInstant">Instant</option>
+                    </select>
+                </span>
+            </div>
+            <div class="sub-row">
+                <span class="sub-label" data-i18n="vimiumKeyTimeoutLabel">Key timeout</span>
+                <span class="sub-input">
+                    <input type="number" id="vimium-key-timeout" min="100" max="10000" step="100">
+                    <span class="sub-unit">ms</span>
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <div class="section section-dev">
+        <div class="section-header" data-i18n="sectionDeveloper">Developer</div>
+        <div class="feature-row">
+            <div class="feature-info">
+                <span class="feature-label" data-i18n="debugLabel">Debug</span>
+                <span class="feature-desc" data-i18n="debugDesc">Print [WT] logs to console</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="debug-toggle">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+    </div>
+
+    <div id="status" class="status"></div>
 </body>
 </html>

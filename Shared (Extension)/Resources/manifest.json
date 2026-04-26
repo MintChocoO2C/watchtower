@@ -19,15 +19,24 @@
         "type": "module"
     },
 
-    "content_scripts": [{
-        "js": [ "content.js" ],
-        "matches": [ "*://example.com/*" ]
-    }],
+    "content_scripts": [
+        {
+            "js": [ "content.js", "vimium.js" ],
+            "matches": [ "<all_urls>" ],
+            "run_at": "document_idle"
+        },
+        {
+            "js": [ "page-script.js" ],
+            "matches": [ "<all_urls>" ],
+            "world": "MAIN",
+            "run_at": "document_start"
+        }
+    ],
 
     "action": {
         "default_popup": "popup.html",
         "default_icon": "images/toolbar-icon.svg"
     },
 
-    "permissions": [ ]
+    "permissions": [ "activeTab", "storage", "contextMenus", "clipboardWrite", "scripting" ]
 }

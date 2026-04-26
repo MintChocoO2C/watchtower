@@ -4,43 +4,43 @@
         "description": "The display name for the extension."
     },
     "extension_description": {
-        "message": "Safari Extension",
+        "message": "Safari 확장 프로그램",
         "description": "Short tagline shown under the title in the popup header."
     },
     "sectionVideo": {
-        "message": "Video"
+        "message": "영상"
     },
     "sectionYouTube": {
         "message": "YouTube"
     },
     "sectionNavigation": {
-        "message": "Navigation"
+        "message": "탐색"
     },
     "sectionDeveloper": {
-        "message": "Developer"
+        "message": "개발자"
     },
     "autoPipLabel": {
         "message": "Auto PiP",
         "description": "Feature label for automatic Picture-in-Picture"
     },
     "autoPipDesc": {
-        "message": "Auto PiP on tab switch",
+        "message": "탭 전환 시 자동 PiP",
         "description": "Description for Auto PiP feature"
     },
     "ytMiniplayerLabel": {
-        "message": "YouTube Miniplayer",
+        "message": "YouTube 미니플레이어",
         "description": "Feature label for YouTube miniplayer"
     },
     "ytMiniplayerDesc": {
-        "message": "Switch to miniplayer on logo click",
+        "message": "로고 클릭 시 미니플레이어로 전환",
         "description": "Description for YouTube miniplayer feature"
     },
     "hideShortsLabel": {
-        "message": "Hide Shorts",
+        "message": "Shorts 숨기기",
         "description": "Feature label for hiding YouTube Shorts"
     },
     "hideShortsDesc": {
-        "message": "Remove Shorts from home feed",
+        "message": "홈 피드 Shorts 섹션 제거",
         "description": "Description for Hide Shorts feature"
     },
     "autoPipOn": {
@@ -50,33 +50,33 @@
         "message": "Auto PiP OFF"
     },
     "ytMiniplayerOn": {
-        "message": "YouTube Miniplayer ON"
+        "message": "YouTube 미니플레이어 ON"
     },
     "ytMiniplayerOff": {
-        "message": "YouTube Miniplayer OFF"
+        "message": "YouTube 미니플레이어 OFF"
     },
     "hideShortsOn": {
-        "message": "Hide Shorts ON"
+        "message": "Shorts 숨기기 ON"
     },
     "hideShortsOff": {
-        "message": "Hide Shorts OFF"
+        "message": "Shorts 숨기기 OFF"
     },
     "videoPlaying": {
-        "message": "Video detected ($count$ playing)",
+        "message": "비디오 감지 ($count$개 재생 중)",
         "description": "Status showing number of playing videos",
         "placeholders": {
             "count": { "content": "$1", "example": "2" }
         }
     },
     "videoPaused": {
-        "message": "Video detected (paused)"
+        "message": "비디오 감지 (일시정지)"
     },
     "copyVideoFrame": {
-        "message": "Copy Video Frame",
+        "message": "동영상 프레임 복사",
         "description": "Context menu item to copy the current video frame to clipboard"
     },
     "downloadVideoFrame": {
-        "message": "Download Video Frame",
+        "message": "동영상 프레임 다운로드",
         "description": "Context menu item to download the current video frame as a file"
     },
     "vimiumLabel": {
@@ -84,7 +84,7 @@
         "description": "Feature label for Vim-style keyboard navigation"
     },
     "vimiumDesc": {
-        "message": "Vim-style keyboard navigation",
+        "message": "Vim \uc2a4\ud0c0\uc77c \ud0a4\ubcf4\ub4dc \ud0d0\uc0c9",
         "description": "Description for Vimium feature"
     },
     "vimiumOn": {
@@ -94,30 +94,30 @@
         "message": "Vimium OFF"
     },
     "vimiumScrollStepLabel": {
-        "message": "Scroll step"
+        "message": "스크롤 간격"
     },
     "vimiumScrollBehaviorLabel": {
-        "message": "Scroll style"
+        "message": "스크롤 방식"
     },
     "vimiumBehaviorSmooth": {
-        "message": "Smooth"
+        "message": "부드럽게"
     },
     "vimiumBehaviorInstant": {
-        "message": "Instant"
+        "message": "즉시"
     },
     "vimiumKeyTimeoutLabel": {
-        "message": "Key timeout"
+        "message": "키 입력 대기"
     },
     "debugLabel": {
-        "message": "Debug Logging"
+        "message": "디버그 로깅"
     },
     "debugDesc": {
-        "message": "Print [WT] logs to console"
+        "message": "콘솔에 [WT] 로그 출력"
     },
     "debugOn": {
-        "message": "Debug ON"
+        "message": "디버그 ON"
     },
     "debugOff": {
-        "message": "Debug OFF"
+        "message": "디버그 OFF"
     }
 }
