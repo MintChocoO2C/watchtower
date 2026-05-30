@@ -52,6 +52,9 @@
 
     function onMouseMove(e) {
         if (!tracking) return;
+        // 휠 버튼이 더 이상 눌려있지 않으면(창 밖에서 떼는 등 mouseup 누락) 취소.
+        // e.buttons 비트: 1=좌, 2=우, 4=휠(가운데)
+        if ((e.buttons & 4) === 0) { cancelGesture(); return; }
         addTrailPoint(e.clientX, e.clientY);   // 매 이동마다 궤적 그리기
 
         const dx = e.clientX - lastX;
@@ -72,6 +75,7 @@
 
     function onMouseUp(e) {
         if (!tracking) return;
+        if (e.button !== 1) return;   // 휠 버튼 떼기만 제스처 종료로 인정 (다른 버튼 release는 무시)
         tracking = false;
         endTrail();
         if (!gesturePerformed) { removeHud(); return; }  // 단순 휠클릭 → 동작 없음 (새 탭 열기 등 통과)
@@ -96,6 +100,16 @@
             e.preventDefault();
             e.stopPropagation();
         }
+    }
+
+    // 진행 중인 제스처를 동작 실행 없이 취소 (mouseup 누락·창 포커스 상실·pointercancel 대비)
+    function cancelGesture() {
+        if (!tracking) return;
+        tracking = false;
+        sequence = [];
+        gesturePerformed = false;
+        endTrail();
+        removeHud();
     }
 
     function t(key) {
@@ -209,6 +223,8 @@
         document.addEventListener("mousemove", onMouseMove, true);
         document.addEventListener("mouseup", onMouseUp, true);
         document.addEventListener("auxclick", onAuxClick, true);
+        document.addEventListener("pointercancel", cancelGesture, true);
+        window.addEventListener("blur", cancelGesture, true);
     }
 
     function unbind() {
@@ -216,6 +232,8 @@
         document.removeEventListener("mousemove", onMouseMove, true);
         document.removeEventListener("mouseup", onMouseUp, true);
         document.removeEventListener("auxclick", onAuxClick, true);
+        document.removeEventListener("pointercancel", cancelGesture, true);
+        window.removeEventListener("blur", cancelGesture, true);
         removeHud();
         removeCanvas();
         tracking = false;
