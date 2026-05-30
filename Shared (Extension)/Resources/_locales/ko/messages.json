@@ -108,6 +108,21 @@
     "gestureReload": {
         "message": "새로고침"
     },
+    "gestureCloseTab": {
+        "message": "탭 닫기"
+    },
+    "gestureRestoreTab": {
+        "message": "닫은 탭 복원"
+    },
+    "gestureNextTab": {
+        "message": "다음 탭"
+    },
+    "gesturePrevTab": {
+        "message": "이전 탭"
+    },
+    "gestureNewTab": {
+        "message": "새 탭"
+    },
     "vimiumLabel": {
         "message": "Vimium",
         "description": "Feature label for Vim-style keyboard navigation"

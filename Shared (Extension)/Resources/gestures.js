@@ -8,12 +8,13 @@
 (() => {
     "use strict";
 
+    const WT = window.WT;            // 공용 기반 (wt-core.js)
+
     const MIN_SEGMENT = 30;          // 방향 토큰 1개로 인정할 최소 이동(px)
     const HUD_ID = "wt-gesture-hud";
     const ARROW = { L: "←", R: "→", U: "↑", D: "↓" };
 
     let enabled = false;
-    let debug = false;
     let tracking = false;
     let lastX = 0, lastY = 0;
     let sequence = [];               // ["L","R","U","D"] 방향 토큰 누적
@@ -23,15 +24,20 @@
     const TRAIL_ID = "wt-gesture-trail";
     let canvas = null, ctx = null, drawLastX = 0, drawLastY = 0;
 
-    const log = (...a) => { if (debug) console.log("[WT][gesture]", ...a); };
-
     // 제스처(방향 토큰 연결) → 동작
+    //  - run: content script에서 직접 실행 (네비게이션/스크롤)
+    //  - tab: 공용 탭 서비스(WT.tabs)로 위임 (탭 조작)
     const ACTIONS = {
-        "L":  { msg: "gestureBack",     run: () => history.back() },
-        "R":  { msg: "gestureForward",  run: () => history.forward() },
-        "U":  { msg: "gestureTop",      run: () => window.scrollTo({ top: 0, behavior: "smooth" }) },
-        "D":  { msg: "gestureBottom",   run: () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" }) },
-        "DU": { msg: "gestureReload",   run: () => location.reload() },
+        "L":  { msg: "gestureBack",       run: () => history.back() },
+        "R":  { msg: "gestureForward",    run: () => history.forward() },
+        "U":  { msg: "gestureTop",        run: () => window.scrollTo({ top: 0, behavior: "smooth" }) },
+        "D":  { msg: "gestureBottom",     run: () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "smooth" }) },
+        "DU": { msg: "gestureReload",     run: () => location.reload() },
+        "DR": { msg: "gestureCloseTab",   tab: "close" },
+        "DL": { msg: "gestureRestoreTab", tab: "restore" },
+        "UR": { msg: "gestureNextTab",    tab: "next" },
+        "UL": { msg: "gesturePrevTab",    tab: "prev" },
+        "RD": { msg: "gestureNewTab",     tab: "new" },
     };
 
     function onMouseDown(e) {
@@ -72,11 +78,14 @@
 
         const key = sequence.join("");
         const action = ACTIONS[key];
-        log("제스처:", key || "(없음)", action ? "→ " + action.msg : "(매핑 없음)");
+        WT.log("gesture", "제스처:", key || "(없음)", action ? "→ " + action.msg : "(매핑 없음)");
         showHud(true);                  // 최종 화살표 + 동작명 표시
         fadeHud();                      // 잠시 유지 후 사라짐
         if (action) {
-            try { action.run(); } catch (err) { log("실행 오류:", err?.message); }
+            try {
+                if (action.tab) WT.tabs.op(action.tab);   // 탭 조작 → 공용 탭 서비스
+                else action.run();
+            } catch (err) { WT.log("gesture", "실행 오류:", err?.message); }
         }
     }
 
@@ -219,20 +228,11 @@
         on ? bind() : unbind();
     }
 
-    // --- 설정 로드 + 변경 감지 (vimium.js와 동일한 자족 패턴) ---
-    function loadSettings() {
-        browser.storage.local.get(["mouseGestureEnabled", "debugEnabled"]).then((r) => {
-            debug = r.debugEnabled ?? false;
-            apply(r.mouseGestureEnabled ?? false);
-        }).catch(() => {});
-    }
-
-    browser.runtime.onMessage.addListener((request) => {
-        if (request.action !== "storageChanged") return;
-        const c = request.changes || {};
-        if (c.debugEnabled) debug = c.debugEnabled.newValue ?? false;
-        if (c.mouseGestureEnabled) apply(c.mouseGestureEnabled.newValue ?? false);
+    // --- 설정 로드 + 변경 감지 (공용 기반 WT 사용) ---
+    WT.watch(["mouseGestureEnabled"], (changes) => {
+        if (changes.mouseGestureEnabled) apply(changes.mouseGestureEnabled.newValue ?? false);
     });
-
-    loadSettings();
+    WT.load(["mouseGestureEnabled"])
+        .then(r => apply(r.mouseGestureEnabled ?? false))
+        .catch(() => {});
 })();

@@ -120,6 +120,7 @@
 				Resources/popup.html,
 				Resources/popup.js,
 				Resources/vimium.js,
+				"Resources/wt-core.js",
 				SafariWebExtensionHandler.swift,
 			);
 			target = 17BAA1802F78250A00DDC21A /* watchtower Extension (iOS) */;
@@ -138,6 +139,7 @@
 				Resources/popup.html,
 				Resources/popup.js,
 				Resources/vimium.js,
+				"Resources/wt-core.js",
 				SafariWebExtensionHandler.swift,
 			);
 			target = 17BAA18A2F78250A00DDC21A /* watchtower Extension (macOS) */;

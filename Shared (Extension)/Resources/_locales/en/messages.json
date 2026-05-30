@@ -108,6 +108,21 @@
     "gestureReload": {
         "message": "Reload"
     },
+    "gestureCloseTab": {
+        "message": "Close tab"
+    },
+    "gestureRestoreTab": {
+        "message": "Reopen tab"
+    },
+    "gestureNextTab": {
+        "message": "Next tab"
+    },
+    "gesturePrevTab": {
+        "message": "Previous tab"
+    },
+    "gestureNewTab": {
+        "message": "New tab"
+    },
     "vimiumLabel": {
         "message": "Vimium",
         "description": "Feature label for Vim-style keyboard navigation"

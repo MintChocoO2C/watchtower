@@ -156,9 +156,9 @@
     // 리로드
     registerCommand("r", () => location.reload());
 
-    // === Phase 5: 탭 조작 (background.js로 라우팅) ===
+    // === 탭 조작 (공용 탭 서비스 WT.tabs 사용 → background로 위임) ===
     function sendTabOp(op) {
-        browser.runtime.sendMessage({ action: "vimium:tabs", op }).catch(() => {});
+        window.WT.tabs.op(op);
     }
     registerCommand("J",  () => sendTabOp("prev"));
     registerCommand("K",  () => sendTabOp("next"));
@@ -304,7 +304,7 @@
         } else if (hintAction === "newTab") {
             const href = el.href;
             if (href) {
-                browser.runtime.sendMessage({ action: "vimium:openTab", url: href }).catch(() => {});
+                window.WT.tabs.openTab(href);
             } else {
                 el.click();
             }

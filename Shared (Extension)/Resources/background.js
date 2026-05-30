@@ -11,18 +11,18 @@ browser.runtime.onMessage.addListener((request, sender) => {
             });
     }
 
-    // Vimium: 새 탭에서 URL 열기 (F 명령용 — content script는 tabs.create 직접 호출 불가)
-    if (request.action === "vimium:openTab" && request.url) {
+    // 공용 탭 서비스: 배경 새 탭으로 URL 열기 (content script는 tabs.create 직접 호출 불가)
+    if (request.action === "wt:openTab" && request.url) {
         return browser.tabs.create({ url: request.url, active: false });
     }
 
-    // Vimium: 탭 조작 (J/K/t/x/X/gt/gT)
-    if (request.action === "vimium:tabs") {
-        return handleVimiumTabOp(request.op, sender);
+    // 공용 탭 서비스: 탭 조작 (vimium 키맵 / 마우스 제스처 등이 공용으로 사용)
+    if (request.action === "wt:tabs") {
+        return handleTabOp(request.op, sender);
     }
 });
 
-// === Vimium 닫은-탭 스택 (X 명령용 — sessions.restore 폴백) ===
+// === 닫은-탭 스택 (탭 복원 — sessions.restore 폴백용) ===
 const wtTabUrlMap = new Map();   // tabId -> {url, title}
 const wtClosedStack = [];        // [{url, title}], 최신이 끝
 const WT_CLOSED_MAX = 25;
@@ -42,7 +42,7 @@ browser.tabs.onRemoved.addListener((tabId) => {
     }
 });
 
-async function handleVimiumTabOp(op, sender) {
+async function handleTabOp(op, sender) {
     try {
         if (op === "next" || op === "prev") {
             const tabs = await browser.tabs.query({ currentWindow: true });
@@ -76,7 +76,7 @@ async function handleVimiumTabOp(op, sender) {
             }
         }
     } catch (e) {
-        console.error("[WT] vimium:tabs error:", op, e?.name, e?.message);
+        console.error("[WT] wt:tabs error:", op, e?.name, e?.message);
     }
 }
 

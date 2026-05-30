@@ -21,7 +21,7 @@
 
     "content_scripts": [
         {
-            "js": [ "content.js", "vimium.js", "gestures.js" ],
+            "js": [ "wt-core.js", "content.js", "vimium.js", "gestures.js" ],
             "matches": [ "<all_urls>" ],
             "run_at": "document_idle"
         },
