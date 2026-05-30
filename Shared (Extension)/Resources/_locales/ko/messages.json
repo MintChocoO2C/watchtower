@@ -79,6 +79,35 @@
         "message": "동영상 프레임 다운로드",
         "description": "Context menu item to download the current video frame as a file"
     },
+    "mouseGestureLabel": {
+        "message": "마우스 제스처",
+        "description": "Feature label for mouse gesture navigation"
+    },
+    "mouseGestureDesc": {
+        "message": "휠 버튼 드래그로 탐색 (마우스 전용)",
+        "description": "Description for the mouse gesture feature"
+    },
+    "mouseGestureOn": {
+        "message": "마우스 제스처 ON"
+    },
+    "mouseGestureOff": {
+        "message": "마우스 제스처 OFF"
+    },
+    "gestureBack": {
+        "message": "뒤로"
+    },
+    "gestureForward": {
+        "message": "앞으로"
+    },
+    "gestureTop": {
+        "message": "맨 위로"
+    },
+    "gestureBottom": {
+        "message": "맨 아래로"
+    },
+    "gestureReload": {
+        "message": "새로고침"
+    },
     "vimiumLabel": {
         "message": "Vimium",
         "description": "Feature label for Vim-style keyboard navigation"
