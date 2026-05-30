@@ -79,6 +79,50 @@
         "message": "Download Video Frame",
         "description": "Context menu item to download the current video frame as a file"
     },
+    "mouseGestureLabel": {
+        "message": "Mouse Gestures",
+        "description": "Feature label for mouse gesture navigation"
+    },
+    "mouseGestureDesc": {
+        "message": "Wheel-drag to navigate (mouse only)",
+        "description": "Description for the mouse gesture feature"
+    },
+    "mouseGestureOn": {
+        "message": "Mouse Gestures ON"
+    },
+    "mouseGestureOff": {
+        "message": "Mouse Gestures OFF"
+    },
+    "gestureBack": {
+        "message": "Back"
+    },
+    "gestureForward": {
+        "message": "Forward"
+    },
+    "gestureTop": {
+        "message": "Top"
+    },
+    "gestureBottom": {
+        "message": "Bottom"
+    },
+    "gestureReload": {
+        "message": "Reload"
+    },
+    "gestureCloseTab": {
+        "message": "Close tab"
+    },
+    "gestureRestoreTab": {
+        "message": "Reopen tab"
+    },
+    "gestureNextTab": {
+        "message": "Next tab"
+    },
+    "gesturePrevTab": {
+        "message": "Previous tab"
+    },
+    "gestureNewTab": {
+        "message": "New tab"
+    },
     "vimiumLabel": {
         "message": "Vimium",
         "description": "Feature label for Vim-style keyboard navigation"

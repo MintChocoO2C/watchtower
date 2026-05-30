@@ -156,9 +156,9 @@
     // 리로드
     registerCommand("r", () => location.reload());
 
-    // === Phase 5: 탭 조작 (background.js로 라우팅) ===
+    // === 탭 조작 (공용 탭 서비스 WT.tabs 사용 → background로 위임) ===
     function sendTabOp(op) {
-        browser.runtime.sendMessage({ action: "vimium:tabs", op }).catch(() => {});
+        window.WT.tabs.op(op);
     }
     registerCommand("J",  () => sendTabOp("prev"));
     registerCommand("K",  () => sendTabOp("next"));
@@ -304,7 +304,7 @@
         } else if (hintAction === "newTab") {
             const href = el.href;
             if (href) {
-                browser.runtime.sendMessage({ action: "vimium:openTab", url: href }).catch(() => {});
+                window.WT.tabs.openTab(href);
             } else {
                 el.click();
             }
@@ -543,23 +543,17 @@
     function applyScrollBehavior(v) { if (v === "smooth" || v === "auto") SCROLL_BEHAVIOR = v; }
     function applyKeyTimeout(v)     { if (typeof v === "number" && v >= 100) KEY_TIMEOUT = v; }
 
-    // === storage에서 설정 로드 ===
-    browser.storage.local.get([
-        "vimiumEnabled",
-        "vimiumScrollStep",
-        "vimiumScrollBehavior",
-        "vimiumKeyTimeout"
-    ]).then(result => {
+    // === 설정 로드 + 변경 수신 (공용 기반 WT) ===
+    const VIMIUM_KEYS = ["vimiumEnabled", "vimiumScrollStep", "vimiumScrollBehavior", "vimiumKeyTimeout"];
+
+    window.WT.load(VIMIUM_KEYS).then(result => {
         applyScrollStep(result.vimiumScrollStep);
         applyScrollBehavior(result.vimiumScrollBehavior);
         applyKeyTimeout(result.vimiumKeyTimeout);
         if (result.vimiumEnabled) activate();
     }).catch(() => {});
 
-    // === storage 변경 수신 (background.js relay) ===
-    browser.runtime.onMessage.addListener((request) => {
-        if (request.action !== "storageChanged" || !request.changes) return;
-        const c = request.changes;
+    window.WT.watch(VIMIUM_KEYS, (c) => {
         if (c.vimiumEnabled) {
             if (c.vimiumEnabled.newValue) activate();
             else deactivate();

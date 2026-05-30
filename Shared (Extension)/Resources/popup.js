@@ -1,6 +1,7 @@
 const toggle = document.getElementById("auto-pip-toggle");
 const ytLogoToggle = document.getElementById("yt-logo-miniplayer-toggle");
 const ytHideShortsToggle = document.getElementById("yt-hide-shorts-toggle");
+const mouseGestureToggle = document.getElementById("mouse-gesture-toggle");
 const vimiumToggle = document.getElementById("vimium-toggle");
 const vimiumSub = document.getElementById("vimium-sub");
 const vimiumScrollStep = document.getElementById("vimium-scroll-step");
@@ -21,13 +22,14 @@ document.querySelectorAll("[data-i18n]").forEach(el => {
 
 // 저장된 설정 불러와서 토글/입력에 반영
 browser.storage.local.get([
-    "autoPiPEnabled", "ytLogoMiniplayerEnabled", "ytHideShortsEnabled",
+    "autoPiPEnabled", "ytLogoMiniplayerEnabled", "ytHideShortsEnabled", "mouseGestureEnabled",
     "vimiumEnabled", "vimiumScrollStep", "vimiumScrollBehavior", "vimiumKeyTimeout",
     "debugEnabled"
 ]).then((result) => {
     toggle.checked = result.autoPiPEnabled ?? false;
     ytLogoToggle.checked = result.ytLogoMiniplayerEnabled ?? false;
     ytHideShortsToggle.checked = result.ytHideShortsEnabled ?? false;
+    mouseGestureToggle.checked = result.mouseGestureEnabled ?? false;
     vimiumToggle.checked = result.vimiumEnabled ?? false;
     vimiumScrollStep.value = result.vimiumScrollStep ?? 60;
     vimiumScrollBehavior.value = result.vimiumScrollBehavior ?? "smooth";
@@ -73,6 +75,11 @@ ytLogoToggle.addEventListener("change", () => {
 ytHideShortsToggle.addEventListener("change", () => {
     browser.storage.local.set({ ytHideShortsEnabled: ytHideShortsToggle.checked });
     showStatus(t(ytHideShortsToggle.checked ? "hideShortsOn" : "hideShortsOff"));
+});
+
+mouseGestureToggle.addEventListener("change", () => {
+    browser.storage.local.set({ mouseGestureEnabled: mouseGestureToggle.checked });
+    showStatus(t(mouseGestureToggle.checked ? "mouseGestureOn" : "mouseGestureOff"));
 });
 
 vimiumToggle.addEventListener("change", () => {

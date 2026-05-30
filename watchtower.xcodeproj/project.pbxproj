@@ -112,6 +112,7 @@
 				Resources/_locales,
 				Resources/background.js,
 				Resources/content.js,
+				Resources/gestures.js,
 				Resources/images,
 				Resources/manifest.json,
 				"Resources/page-script.js",
@@ -119,6 +120,7 @@
 				Resources/popup.html,
 				Resources/popup.js,
 				Resources/vimium.js,
+				"Resources/wt-core.js",
 				SafariWebExtensionHandler.swift,
 			);
 			target = 17BAA1802F78250A00DDC21A /* watchtower Extension (iOS) */;
@@ -129,6 +131,7 @@
 				Resources/_locales,
 				Resources/background.js,
 				Resources/content.js,
+				Resources/gestures.js,
 				Resources/images,
 				Resources/manifest.json,
 				"Resources/page-script.js",
@@ -136,6 +139,7 @@
 				Resources/popup.html,
 				Resources/popup.js,
 				Resources/vimium.js,
+				"Resources/wt-core.js",
 				SafariWebExtensionHandler.swift,
 			);
 			target = 17BAA18A2F78250A00DDC21A /* watchtower Extension (macOS) */;

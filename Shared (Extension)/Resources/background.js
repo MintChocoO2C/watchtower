@@ -11,18 +11,18 @@ browser.runtime.onMessage.addListener((request, sender) => {
             });
     }
 
-    // Vimium: 새 탭에서 URL 열기 (F 명령용 — content script는 tabs.create 직접 호출 불가)
-    if (request.action === "vimium:openTab" && request.url) {
+    // 공용 탭 서비스: 배경 새 탭으로 URL 열기 (content script는 tabs.create 직접 호출 불가)
+    if (request.action === "wt:openTab" && request.url) {
         return browser.tabs.create({ url: request.url, active: false });
     }
 
-    // Vimium: 탭 조작 (J/K/t/x/X/gt/gT)
-    if (request.action === "vimium:tabs") {
-        return handleVimiumTabOp(request.op, sender);
+    // 공용 탭 서비스: 탭 조작 (vimium 키맵 / 마우스 제스처 등이 공용으로 사용)
+    if (request.action === "wt:tabs") {
+        return handleTabOp(request.op, sender);
     }
 });
 
-// === Vimium 닫은-탭 스택 (X 명령용 — sessions.restore 폴백) ===
+// === 닫은-탭 스택 (탭 복원 — sessions.restore 폴백용) ===
 const wtTabUrlMap = new Map();   // tabId -> {url, title}
 const wtClosedStack = [];        // [{url, title}], 최신이 끝
 const WT_CLOSED_MAX = 25;
@@ -42,7 +42,7 @@ browser.tabs.onRemoved.addListener((tabId) => {
     }
 });
 
-async function handleVimiumTabOp(op, sender) {
+async function handleTabOp(op, sender) {
     try {
         if (op === "next" || op === "prev") {
             const tabs = await browser.tabs.query({ currentWindow: true });
@@ -76,15 +76,16 @@ async function handleVimiumTabOp(op, sender) {
             }
         }
     } catch (e) {
-        console.error("[WT] vimium:tabs error:", op, e?.name, e?.message);
+        console.error("[WT] wt:tabs error:", op, e?.name, e?.message);
     }
 }
 
-// storage 변경 → 활성 탭의 content script로 relay
+// storage 변경 → 열린 모든 탭의 content script로 relay
 // (Safari에서 content script의 storage.onChanged가 신뢰성 없음)
+// 전 탭에 전달해야 비활성 탭에서도 설정 토글이 즉시 반영된다.
 browser.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    browser.tabs.query({ active: true, currentWindow: true }).then(tabs => {
+    browser.tabs.query({}).then(tabs => {
         for (const tab of tabs) {
             browser.tabs.sendMessage(tab.id, { action: "storageChanged", changes }).catch(() => {});
         }

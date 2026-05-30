@@ -9,7 +9,7 @@ function sendSettingsToPage(settings) {
 }
 
 function loadAndSendSettings() {
-    browser.storage.local.get(["autoPiPEnabled", "ytLogoMiniplayerEnabled", "ytHideShortsEnabled", "debugEnabled"]).then((result) => {
+    window.WT.load(["autoPiPEnabled", "ytLogoMiniplayerEnabled", "ytHideShortsEnabled", "debugEnabled"]).then((result) => {
         sendSettingsToPage({
             autoPiPEnabled: result.autoPiPEnabled ?? false,
             ytLogoMiniplayerEnabled: result.ytLogoMiniplayerEnabled ?? false,
@@ -96,10 +96,14 @@ function applyHideShorts(enabled) {
     }
 }
 
+// 설정 변경 구독 (공용 기반 WT)
+window.WT.watch(["autoPiPEnabled", "ytLogoMiniplayerEnabled", "debugEnabled"], () => loadAndSendSettings());
+window.WT.watch(["ytHideShortsEnabled"], (c) => applyHideShorts(c.ytHideShortsEnabled.newValue ?? false));
+
 // 저장된 설정 불러오기
 loadAndSendSettings();
 
-// --- 팝업 / background 메시지 응답 ---
+// --- 팝업 상태 질의 응답 ---
 browser.runtime.onMessage.addListener((request) => {
     if (request.action === "getStatus") {
         const videos = Array.from(document.querySelectorAll("video"));
@@ -109,16 +113,6 @@ browser.runtime.onMessage.addListener((request) => {
             playingCount: playing.length,
             pipActive: !!document.pictureInPictureElement
         });
-    }
-
-    if (request.action === "storageChanged") {
-        const { changes } = request;
-        if (changes.autoPiPEnabled || changes.ytLogoMiniplayerEnabled || changes.debugEnabled) {
-            loadAndSendSettings();
-        }
-        if (changes.ytHideShortsEnabled) {
-            applyHideShorts(changes.ytHideShortsEnabled.newValue ?? false);
-        }
     }
 });
 
