@@ -13,6 +13,7 @@ Watchtower bundles small quality-of-life features for watching videos on Safari,
 - **Hide YouTube Shorts** — Removes the Shorts section from the home feed and the Shorts entry from the sidebar.
 - **Video Frame Capture** — Right-click any `<video>` element to copy or download the current frame as a PNG.
 - **Vimium-style Keyboard Navigation** — Vim keybindings for scrolling, navigation, and link hints. Configurable scroll step, scroll behavior, and key timeout.
+- **Mouse Gestures** — Hold the wheel (middle) button and drag to go back/forward, manipulate tabs, and more. Live feedback via a trail and an arrow HUD. (Physical mouse only.)
 
 ## Installation
 
@@ -95,15 +96,43 @@ Settings apply immediately; no page reload needed.
 
 Vimium normalizes keystrokes via `KeyboardEvent.code` (physical key), so commands work even when a Korean IME is active. You can keep typing in Korean apps and switch to Safari without toggling input source.
 
+### Mouse Gestures
+
+Toggle **Mouse Gestures** ON in the popup. **Hold the wheel (middle) button and drag** to run an action by direction. A trail is drawn while you drag, and a bottom HUD shows the recognized direction (arrows) and action name in real time.
+
+> Why the wheel button: macOS Safari pops the right-click menu on button *press*, and once suppressed it cannot be re-shown — making right-click gestures impossible. The wheel button has no such conflict, so the **right-click menu and frame capture keep working**. (Physical mouse only — trackpads have no wheel button.)
+
+#### Navigation
+
+| Gesture | Action |
+|---|---|
+| ← | Back |
+| → | Forward |
+| ↑ | Top |
+| ↓ | Bottom |
+| ↓↑ | Reload |
+
+#### Tabs
+
+| Gesture | Action |
+|---|---|
+| ↓→ | Close tab |
+| ↓← | Reopen tab |
+| ↑→ | Next tab |
+| ↑← | Previous tab |
+| →↓ | New tab |
+
+A plain wheel-click (no drag) behaves normally (links open in a new tab).
+
 ## Tech Stack
 
 - **Swift** — host app + extension entry point (`SafariWebExtensionHandler`)
-- **JavaScript** — `manifest_version: 3` web extension (background, content, page-script, popup, vimium)
+- **JavaScript** — `manifest_version: 3` web extension (background, wt-core, content, vimium, gestures, page-script, popup)
 - **Xcode** — build and packaging
 
 The extension uses three execution contexts:
 - A service worker (`background.js`) — owns context menus, message routing, and storage relay
-- An isolated content script (`content.js`, `vimium.js`) — DOM-aware; cannot access page globals
+- Isolated content scripts (`wt-core.js` → `content.js` → `vimium.js` → `gestures.js`) — DOM-aware; cannot access page globals. `wt-core.js` loads first and exposes shared services (`window.WT`: logging, settings subscription, tab ops) that the other features build on
 - A MAIN-world script (`page-script.js`) — runs in the page's JS context for APIs the page exposes
 
 Storage changes are relayed by the background script because Safari's `storage.onChanged` is unreliable inside content scripts.
