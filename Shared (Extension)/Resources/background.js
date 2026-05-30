@@ -80,11 +80,12 @@ async function handleTabOp(op, sender) {
     }
 }
 
-// storage 변경 → 활성 탭의 content script로 relay
+// storage 변경 → 열린 모든 탭의 content script로 relay
 // (Safari에서 content script의 storage.onChanged가 신뢰성 없음)
+// 전 탭에 전달해야 비활성 탭에서도 설정 토글이 즉시 반영된다.
 browser.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
-    browser.tabs.query({ active: true, currentWindow: true }).then(tabs => {
+    browser.tabs.query({}).then(tabs => {
         for (const tab of tabs) {
             browser.tabs.sendMessage(tab.id, { action: "storageChanged", changes }).catch(() => {});
         }

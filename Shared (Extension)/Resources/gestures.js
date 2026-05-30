@@ -127,7 +127,8 @@
         canvas.height = Math.floor(window.innerHeight * dpr);
         canvas.style.cssText =
             "position:fixed;left:0;top:0;width:100vw;height:100vh;" +
-            "z-index:2147483647;pointer-events:none;transition:opacity .25s;opacity:1;";
+            "z-index:2147483647;pointer-events:none;transition:opacity .25s;opacity:1;" +
+            "filter:drop-shadow(0 0 5px rgba(74,158,255,0.85));";  // 글로우는 compositor에서 (per-stroke shadowBlur 대신)
         (document.body || document.documentElement).appendChild(canvas);
         ctx = canvas.getContext("2d");
         ctx.scale(dpr, dpr);
@@ -135,8 +136,6 @@
         ctx.lineCap = "round";
         ctx.lineJoin = "round";
         ctx.strokeStyle = "rgba(74,158,255,0.95)";
-        ctx.shadowColor = "rgba(74,158,255,0.85)";
-        ctx.shadowBlur = 10;
         drawLastX = x;
         drawLastY = y;
     }

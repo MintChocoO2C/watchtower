@@ -543,23 +543,17 @@
     function applyScrollBehavior(v) { if (v === "smooth" || v === "auto") SCROLL_BEHAVIOR = v; }
     function applyKeyTimeout(v)     { if (typeof v === "number" && v >= 100) KEY_TIMEOUT = v; }
 
-    // === storage에서 설정 로드 ===
-    browser.storage.local.get([
-        "vimiumEnabled",
-        "vimiumScrollStep",
-        "vimiumScrollBehavior",
-        "vimiumKeyTimeout"
-    ]).then(result => {
+    // === 설정 로드 + 변경 수신 (공용 기반 WT) ===
+    const VIMIUM_KEYS = ["vimiumEnabled", "vimiumScrollStep", "vimiumScrollBehavior", "vimiumKeyTimeout"];
+
+    window.WT.load(VIMIUM_KEYS).then(result => {
         applyScrollStep(result.vimiumScrollStep);
         applyScrollBehavior(result.vimiumScrollBehavior);
         applyKeyTimeout(result.vimiumKeyTimeout);
         if (result.vimiumEnabled) activate();
     }).catch(() => {});
 
-    // === storage 변경 수신 (background.js relay) ===
-    browser.runtime.onMessage.addListener((request) => {
-        if (request.action !== "storageChanged" || !request.changes) return;
-        const c = request.changes;
+    window.WT.watch(VIMIUM_KEYS, (c) => {
         if (c.vimiumEnabled) {
             if (c.vimiumEnabled.newValue) activate();
             else deactivate();
