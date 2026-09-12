@@ -13,6 +13,7 @@ Watchtower bundles a **Situation Room** for watching several Chzzk channels on o
 - **YouTube Miniplayer** — Click the YouTube logo on a `/watch` page to switch to the miniplayer; click the miniplayer again to return to the full player.
 - **Hide YouTube Shorts** — Removes the Shorts section from the home feed and the Shorts entry from the sidebar.
 - **Video Frame Capture** — Right-click any `<video>` element to copy or download the current frame as a PNG.
+- **Chzzk Ad Auto-skip** — Presses the ad SKIP button the moment it becomes clickable. Ads are not blocked. (Also works inside Situation Room tiles)
 - **Press to Fast-Forward** — Press and hold on a video to play at 2× speed; release to restore the original speed. (Works on any `<video>`, e.g. Chzzk VOD. YouTube is excluded since it has this built in.)
 
 ## Installation
@@ -64,7 +65,7 @@ Toggle **Press to Fast-Forward** ON in the popup. Press and **hold** the left mo
 
 The extension uses three execution contexts:
 - A service worker (`background.js`) — owns the toolbar action (opens the room), context menus, and storage relay
-- Isolated content scripts (`wt-core.js` → `content.js` → `speed.js`; on the room path, `wt-core.js` → `room.js`) — DOM-aware; cannot access page globals. `wt-core.js` loads first and exposes shared services (`window.WT`: logging, settings subscription) that the other features build on
+- Isolated content scripts (`wt-core.js` → `content.js` → `speed.js` → `adskip.js`; on the room path, `wt-core.js` → `adskip.js` → `room.js`) — DOM-aware; cannot access page globals. `wt-core.js` loads first and exposes shared services (`window.WT`: logging, settings subscription) that the other features build on
 - A MAIN-world script (`page-script.js`) — runs in the page's JS context for APIs the page exposes
 
 Storage changes are relayed by the background script because Safari's `storage.onChanged` is unreliable inside content scripts.

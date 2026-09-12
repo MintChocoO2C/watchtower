@@ -141,6 +141,33 @@
 .wt-tile.focus .wt-tile-top { cursor: default; }
 .wt-tile.focus .wt-focus-btn { background: var(--wt-accent); color: var(--wt-accent-ink); border-color: transparent; }
 
+/* 집중 보기 구분 신호 — 방송이 하나뿐인 격자와 화면이 같아 보이지 않게.
+   (1) 상단 바: 강조색 「집중 보기」 배지 + 바 아래 강조선, 「격자로」 버튼은 강조 테두리
+   (2) 본문: 격자의 회색 바탕 대신 검정 극장 바탕 (라이트 테마에서 특히 분명)
+   (3) 진입/이동 시 안내 토스트가 잠깐 떴다 사라짐 — 영상을 상시 가리는 요소는 없다 */
+.wt-mode {
+    display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 6px; border-radius: 999px;
+    background: var(--wt-accent); color: var(--wt-accent-ink); font-size: 11px; font-weight: 700; letter-spacing: .01em;
+}
+.wt-mode[hidden] { display: none; }
+.focus-mode .wt-bar { box-shadow: inset 0 -2px 0 var(--wt-accent); }
+.focus-mode .wt-unfocus { border-color: var(--wt-accent); }
+.focus-mode .wt-body { background: #000; }
+.focus-mode .wt-scroll { padding: 0; }
+.wt-focus-toast {
+    position: absolute; top: 18px; left: 50%; transform: translate(-50%, -6px); z-index: 11;
+    display: flex; flex-direction: column; align-items: center; gap: 2px; max-width: min(70%, 520px);
+    padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14);
+    background: rgba(12, 13, 16, .82); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    color: #e9eaed; text-align: center; box-shadow: 0 8px 24px rgba(0,0,0,.45);
+    opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease;
+}
+.wt-focus-toast.show { opacity: 1; transform: translate(-50%, 0); }
+.wt-focus-toast-name { font-weight: 600; font-size: 13px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wt-focus-toast-name::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--wt-accent); margin-right: 7px; vertical-align: 1px; }
+.wt-focus-toast-hint { font-size: 11px; color: #b7bcc6; }
+@media (prefers-reduced-motion: reduce) { .wt-focus-toast { transition: none; } }
+
 /* 채팅 서랍 (집중 보기 전용): 가장자리에 손잡이만 보이다가 서랍에 마우스가 들어오면 열리고(.open), 영상 영역에 들어가면 닫힌다 */
 .wt-chatdock {
     position: absolute; top: 8px; bottom: 8px; width: min(360px, 45vw); z-index: 12;

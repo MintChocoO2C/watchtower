@@ -10,6 +10,9 @@
     "sectionVideo": {
         "message": "Video"
     },
+    "sectionChzzk": {
+        "message": "Chzzk"
+    },
     "sectionYouTube": {
         "message": "YouTube"
     },
@@ -31,6 +34,14 @@
     "pressFastForwardDesc": {
         "message": "Hold on a video for 2× speed",
         "description": "Description for press-to-fast-forward feature"
+    },
+    "adSkipLabel": {
+        "message": "Auto-skip Ads",
+        "description": "Feature label for auto-skipping Chzzk ads"
+    },
+    "adSkipDesc": {
+        "message": "Press the ad SKIP button as soon as it appears",
+        "description": "Description for the ad auto-skip feature"
     },
     "ytMiniplayerLabel": {
         "message": "YouTube Miniplayer",
@@ -139,6 +150,12 @@
     },
     "roomBackToGrid": {
         "message": "Grid"
+    },
+    "roomFocusMode": {
+        "message": "Focus"
+    },
+    "roomFocusToastHint": {
+        "message": "Esc grid · ←/→ switch stream · number keys jump"
     },
     "roomFocusHint": {
         "message": "Double-click or Esc to go back · ←/→ next stream · number keys jump"

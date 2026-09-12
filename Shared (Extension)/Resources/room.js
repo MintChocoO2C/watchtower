@@ -39,6 +39,9 @@
             { key: "autoPiPEnabled", label: "autoPipLabel", desc: "autoPipDesc" },
             { key: "pressFastForwardEnabled", label: "pressFastForwardLabel", desc: "pressFastForwardDesc" },
         ]},
+        { section: "sectionChzzk", items: [
+            { key: "chzzkAdSkipEnabled", label: "adSkipLabel", desc: "adSkipDesc", def: true },
+        ]},
         { section: "sectionYouTube", items: [
             { key: "ytLogoMiniplayerEnabled", label: "ytMiniplayerLabel", desc: "ytMiniplayerDesc" },
             { key: "ytHideShortsEnabled", label: "hideShortsLabel", desc: "hideShortsDesc" },
@@ -101,6 +104,8 @@
 
         const bar = el("header", { class: "wt-bar", onpointerenter: keepChatDock }, [
             el("span", { class: "wt-title", text: t("roomTitle") }),
+            // 집중 보기 배지: 방송이 하나뿐인 격자와 집중 보기가 똑같이 보이지 않게 상단 바에서 모드를 분명히 한다
+            el("span", { class: "wt-mode", id: "wt-mode", hidden: "" }, [focusIcon(), el("span", { text: t("roomFocusMode") })]),
             el("span", { class: "wt-count", id: "wt-count" }),
             el("button", { class: "wt-btn wt-unfocus", type: "button", onclick: exitFocus, text: "← " + t("roomBackToGrid") }),
             el("span", { class: "wt-sp" }),
@@ -128,7 +133,12 @@
         ]);
         const drawer = buildSettingsDrawer();
         const panel = el("div", { class: "wt-panel", id: "wt-follow", hidden: "" });
-        body.append(bar, el("div", { class: "wt-body" }, [scroll, chat]), shelf, backdrop, drawer, panel);
+        // 집중 보기 진입/이동 안내 토스트: 채널명과 단축키를 잠깐 보여 주고 사라진다 (영상을 상시 가리지 않는다)
+        const focusToast = el("div", { class: "wt-focus-toast", id: "wt-focus-toast", "aria-live": "polite" }, [
+            el("span", { class: "wt-focus-toast-name", id: "wt-focus-toast-name" }),
+            el("span", { class: "wt-focus-toast-hint", text: t("roomFocusToastHint") }),
+        ]);
+        body.append(bar, el("div", { class: "wt-body" }, [scroll, chat, focusToast]), shelf, backdrop, drawer, panel);
     }
 
     // 열 수(자동/1~4) + 화면에 맞춤 토글
@@ -226,16 +236,18 @@
     }
 
     async function loadSettings() {
-        const keys = SETTINGS.flatMap(g => g.items.map(i => i.key));
+        const items = SETTINGS.flatMap(g => g.items);
+        const keys = items.map(i => i.key);
+        const def = Object.fromEntries(items.map(i => [i.key, i.def === true]));   // 저장된 값이 없을 때의 기본값
         const r = await WT.load(keys);
         for (const key of keys) {
             const input = document.querySelector(`input[data-key="${key}"]`);
-            if (input) input.checked = r[key] ?? false;
+            if (input) input.checked = r[key] ?? def[key];
         }
         WT.watch(keys, (c) => {
             for (const key of Object.keys(c)) {
                 const input = document.querySelector(`input[data-key="${key}"]`);
-                if (input) input.checked = c[key].newValue ?? false;
+                if (input) input.checked = c[key].newValue ?? def[key];
             }
         });
     }
@@ -284,6 +296,7 @@
             ? `${focused.name || focused.id.slice(0, 8)} — ${t("roomFocusHint")}`
             : (state.channels.length ? `${n}/${state.channels.length} · ${cols}${t("roomCols")}` : "");
         document.body.classList.toggle("focus-mode", state.focus !== null);
+        document.getElementById("wt-mode").hidden = !focused;
         const dock = document.getElementById("wt-chatdock");
         dock.dataset.side = state.chatSide;
         for (const b of document.querySelectorAll("#wt-chat-side .wt-seg-btn")) b.setAttribute("aria-pressed", String(b.dataset.side === state.chatSide));
@@ -442,6 +455,8 @@
         }, true);
         doc.addEventListener("keydown", (e) => { if (e.key === "Escape" && state.focus) { e.preventDefault(); exitFocus(); } }, true);
         doc.addEventListener("pointerover", () => { if (state.focus === id) closeChatDock(); }, { capture: true, passive: true });
+        // 타일 안 광고 SKIP 버튼 자동 클릭 (content script 는 iframe 에서 돌지 않으므로 부모가 등록)
+        WT.adSkip?.watch(doc);
         applySound(id);
         WT.log("room", "타일 준비", id);
     }
@@ -507,7 +522,18 @@
         for (const ch of state.channels) applySound(ch.id);
         render();
         tiles.get(id)?.iframe.contentWindow?.focus();
+        showFocusToast(state.channels.find(c => c.id === id));
         WT.log("room", "집중 보기", id.slice(0, 6));
+    }
+    // 집중 보기 안내 토스트: 진입하거나 ←/→·숫자 키로 옮길 때 채널명과 단축키를 2초쯤 보여 준다
+    let focusToastTimer = null;
+    function showFocusToast(ch) {
+        const toast = document.getElementById("wt-focus-toast");
+        if (!toast || !ch) return;
+        document.getElementById("wt-focus-toast-name").textContent = ch.name || ch.id.slice(0, 8);
+        clearTimeout(focusToastTimer);
+        toast.classList.add("show");
+        focusToastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
     }
     function exitFocus() {
         if (state.focus === null) return;
@@ -515,6 +541,8 @@
         state.sounds = state.soundBackup ? new Set(state.soundBackup) : new Set();
         state.soundBackup = null;
         document.body.classList.remove("focus-mode");
+        clearTimeout(focusToastTimer);
+        document.getElementById("wt-focus-toast")?.classList.remove("show");
         saveState();
         for (const ch of state.channels) applySound(ch.id);
         render();

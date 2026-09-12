@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # 상황실 로직을 Safari MCP evaluate_javascript 로 주입하기 위한 번들 생성기.
-# 확장 API(browser.i18n / storage / runtime) shim + wt-core.js + room.js + room.css 를 한 덩어리로 출력한다.
+# 확장 API(browser.i18n / storage / runtime) shim + wt-core.js + adskip.js + room.js + room.css 를 한 덩어리로 출력한다.
 import json, re, sys, os
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")
 R = os.path.join(ROOT, "Shared (Extension)", "Resources")
@@ -10,7 +10,7 @@ ko = json.load(open(os.path.join(R, "_locales", "ko", "messages.json"), encoding
 msgs = {k: v["message"] for k, v in ko.items()}
 css = re.sub(r"/\*.*?\*/", "", read("room.css"), flags=re.S); css = re.sub(r"\n\s*\n", "\n", css); css = re.sub(r"\n\s+", "\n", css)
 strip = lambda s: re.sub(r"\n\s*\n", "\n", re.sub(r"^\s*//.*$", "", s, flags=re.M))
-core, room = strip(read("wt-core.js")), strip(read("room.js"))
+core, adskip, room = strip(read("wt-core.js")), strip(read("adskip.js")), strip(read("room.js"))
 room = room.replace("    main();\n})();", "    window.__wt = { state, tiles, render, addChannel, removeChannel, swapChannels, enterFocus, exitFocus, checkPlayback, retryTile, fitTiles };\n    main();\n})();")
 # 초기 상태 — 필요에 맞게 바꾼다
 store = {
@@ -23,4 +23,4 @@ window.browser = {{ i18n: {{ getMessage: (k) => __msgs[k] || "" }}, storage: {{ 
 window.__wtErrors = []; window.addEventListener("error", e => window.__wtErrors.push(String(e.message))); window.addEventListener("unhandledrejection", e => window.__wtErrors.push("rej:" + String(e.reason)));
 const __style = document.createElement("style"); __style.textContent = {json.dumps(css, ensure_ascii=False)};
 """
-sys.stdout.write(shim + core + "\n" + room + "\ndocument.head.appendChild(__style);\nreturn 'injected: ' + document.title;\n")
+sys.stdout.write(shim + core + "\n" + adskip + "\n" + room + "\ndocument.head.appendChild(__style);\nreturn 'injected: ' + document.title;\n")
