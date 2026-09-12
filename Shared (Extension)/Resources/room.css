@@ -104,6 +104,8 @@
     0%, 100% { box-shadow: 0 0 0 2px var(--wt-accent), 0 0 14px 1px var(--wt-accent-glow); }
     50%      { box-shadow: 0 0 0 2px var(--wt-accent), 0 0 26px 5px var(--wt-accent-glow); }
 }
+/* 소리를 켜기로 했지만 아직 사용자 제스처가 없어 보류 중: 발광 없이 테두리만 */
+.wt-tile.sound.sound-pending { animation: none; box-shadow: 0 0 0 2px var(--wt-accent-glow); }
 @media (prefers-reduced-motion: reduce) {
     .wt-tile, .wt-tile iframe, .wt-drawer { transition: none; }
     .wt-tile.sound { animation: none; }

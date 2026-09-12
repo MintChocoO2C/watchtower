@@ -78,15 +78,23 @@
 
     // --- 문서 골격 ---
     function buildDocument() {
+        // 주의: <html>.innerHTML = "" 은 HTML 프래그먼트 파서가 **빈 <head>/<body> 를 자동으로 만들어 둔다.**
+        // 여기에 head/body 를 새로 만들어 붙이면 head·body 가 두 개씩 생기고, document.body 는
+        // 앞쪽의 빈 body 를 가리킨다(그 body 에 스타일이 붙으면 진짜 내용이 화면 밖으로 밀려 검은 화면이 된다).
+        // 그래서 파서가 만들어 준 head/body 를 그대로 채우고, 혹시 없으면 그때만 만든다.
         document.documentElement.innerHTML = "";
         document.documentElement.lang = navigator.language.startsWith("ko") ? "ko" : "en";
-        const head = el("head", {}, [
+        let head = document.head;
+        if (!head) { head = el("head"); document.documentElement.prepend(head); }
+        head.replaceChildren(
             el("meta", { charset: "utf-8" }),
             el("meta", { name: "viewport", content: "width=device-width, initial-scale=1" }),
             el("title", { text: t("roomTitle") + " · Watchtower" }),
-        ]);
-        const body = el("body", { class: "wt-room" });
-        document.documentElement.append(head, body);
+        );
+        let body = document.body;
+        if (!body) { body = el("body"); document.documentElement.appendChild(body); }
+        body.replaceChildren();
+        body.className = "wt-room";
 
         const bar = el("header", { class: "wt-bar" }, [
             el("span", { class: "wt-title", text: t("roomTitle") }),
@@ -336,7 +344,10 @@
 
     // video.muted 가 곧 진실. 우리 상태와 다르면 맞추고 저장한다.
     function syncSoundFromVideo(id, v) {
+        const tile = tiles.get(id);
+        if (tile?.autoMuting) return;           // 우리가 되돌린 음소거는 사용자의 뜻이 아니다
         const on = !v.muted;
+        if (on) tile?.root.classList.remove("sound-pending");
         if (state.sounds.has(id) === on) return;
         if (on) state.sounds.add(id); else state.sounds.delete(id);
         saveState();
@@ -355,21 +366,42 @@
         saveState();
         applySound(id);
     }
-    // 저장된 소리 상태를 video 에 적용. 제스처 없이 풀었다가 Safari 가 일시정지시키면 음소거로 되돌린다.
+    // 저장된 소리 의도(state.sounds)를 video 에 적용한다.
+    // - 소리를 켜려는 타일: 페이지에 사용자 제스처가 있었을 때만 실제로 푼다(없으면 Safari 가 재생을 멈춘다).
+    //   제스처가 없으면 음소거 상태로 두고 의도는 유지 → 첫 클릭 때 다시 적용한다(pending 표시).
+    //   풀었는데도 Safari 가 멈추면 음소거로 되돌리되 의도는 지우지 않는다.
+    // - 음소거 타일: muted 만 걸고 play() 는 부르지 않는다(플레이어의 광고/준비 단계를 건드리면 멈춘다).
     function applySound(id) {
         const v = tileVideo(id);
-        const on = state.sounds.has(id);
-        if (v) {
-            v.muted = !on;
-            if (v.paused) v.play().catch(() => {});
-            if (on) setTimeout(() => {
-                if (v.paused && state.sounds.has(id)) {
-                    WT.log("room", "제스처 없이 소리 켜기 거부됨 → 음소거로 복귀", id.slice(0, 6));
-                    v.muted = true; v.play().catch(() => {});
-                }
-            }, 800);
+        const tile = tiles.get(id);
+        const want = state.sounds.has(id);
+        if (v && tile) {
+            if (!want) {
+                if (!v.muted) { tile.autoMuting = true; v.muted = true; tile.autoMuting = false; }
+                tile.root.classList.remove("sound-pending");
+            } else if (navigator.userActivation?.hasBeenActive !== false) {
+                v.muted = false;
+                if (v.paused) v.play().catch(() => {});
+                tile.root.classList.remove("sound-pending");
+                setTimeout(() => {
+                    if (v.paused && state.sounds.has(id)) {
+                        WT.log("room", "제스처 없이 소리 켜기 거부됨 → 음소거 유지, 의도는 보존", id.slice(0, 6));
+                        tile.autoMuting = true; v.muted = true; tile.autoMuting = false;
+                        v.play().catch(() => {});
+                        tile.root.classList.add("sound-pending");
+                    }
+                }, 800);
+            } else {
+                tile.root.classList.add("sound-pending");
+            }
         }
         updateTile(id);
+    }
+    // 첫 사용자 제스처가 생기면 보류된 소리 의도를 적용한다
+    function applyPendingSounds() {
+        for (const id of state.sounds) {
+            if (tiles.get(id)?.root.classList.contains("sound-pending")) applySound(id);
+        }
     }
 
     function updateTile(id) {
@@ -580,6 +612,7 @@
         setInterval(() => refreshStatus(), STATUS_INTERVAL_MS);
         setInterval(checkPlayback, PLAYBACK_CHECK_MS);
         window.addEventListener("resize", fitTiles);
+        document.addEventListener("pointerdown", applyPendingSounds, true);
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape") {
                 document.getElementById("wt-drawer").classList.remove("open");
