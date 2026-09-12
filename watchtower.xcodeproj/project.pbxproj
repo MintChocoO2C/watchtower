@@ -58,6 +58,7 @@
 		17BAA1762F78250A00DDC21A /* watchtower.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = watchtower.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		17BAA1812F78250A00DDC21A /* watchtower Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "watchtower Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		17BAA18B2F78250A00DDC21A /* watchtower Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "watchtower Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		17BAA1D02F78250A00DDC21A /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -240,6 +241,7 @@
 				17BAA1852F78250A00DDC21A /* iOS (Extension) */,
 				17BAA18F2F78250A00DDC21A /* macOS (Extension) */,
 				17BAA1652F78250A00DDC21A /* Products */,
+				17BAA1D12F78250A00DDC21A /* Config */,
 			);
 			sourceTree = "<group>";
 		};
@@ -252,6 +254,14 @@
 				17BAA18B2F78250A00DDC21A /* watchtower Extension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		17BAA1D12F78250A00DDC21A /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				17BAA1D02F78250A00DDC21A /* Base.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -771,6 +781,7 @@
 		};
 		17BAA1C42F78250A00DDC21A /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 17BAA1D02F78250A00DDC21A /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
@@ -832,6 +843,7 @@
 		};
 		17BAA1C52F78250A00DDC21A /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 17BAA1D02F78250A00DDC21A /* Base.xcconfig */;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
