@@ -136,5 +136,8 @@
     },
     "roomRetryGiveUp": {
         "message": "Stopped auto-retrying. Press the button to try again"
+    },
+    "roomOfflineShelf": {
+        "message": "Offline — returns automatically when live again"
     }
 }

@@ -112,7 +112,7 @@
 }
 
 .wt-tile-top {
-    position: absolute; top: 0; left: 0; right: 0; z-index: 2;
+    position: absolute; top: 0; left: 0; right: 0; z-index: 4;   /* 오버레이(종료/오류, z 3)보다 위 — 항상 조작 가능 */
     display: flex; align-items: center; gap: 6px; padding: 5px 6px;
     background: linear-gradient(rgba(0,0,0,.7), rgba(0,0,0,0));
     color: #e9eaed; font-size: 11px; opacity: 0; transition: opacity .15s ease; pointer-events: none;
@@ -159,6 +159,27 @@
 .wt-retry { margin-top: 4px; background: var(--wt-accent); color: var(--wt-accent-ink); border-color: transparent; font-weight: 600; }
 .wt-tile.error .wt-error { display: grid; }
 .wt-tile.error .wt-tile-sound { display: none; }
+
+/* 종료된 방송 선반 */
+.wt-shelf {
+    flex-shrink: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 6px 12px; border-top: 1px solid var(--wt-border); background: var(--wt-bar); font-size: 12px;
+}
+.wt-shelf[hidden] { display: none; }
+.wt-shelf-label { color: var(--wt-muted); white-space: nowrap; }
+.wt-shelf-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.wt-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px;
+    background: var(--wt-surface-2); border: 1px solid var(--wt-border-strong); border-radius: 999px; opacity: .8;
+}
+.wt-chip img, .wt-chip-dot { width: 18px; height: 18px; border-radius: 50%; background: var(--wt-border-strong); object-fit: cover; filter: grayscale(1); }
+.wt-chip-name { max-width: 140px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wt-chip-x { width: 18px; height: 18px; border: 0; border-radius: 50%; background: transparent; color: var(--wt-muted); font-size: 13px; line-height: 1; padding: 0; display: grid; place-items: center; }
+.wt-chip-x:hover { background: var(--wt-border-strong); color: var(--wt-text); }
+
+/* 패널/서랍 바깥 클릭 닫기용 투명 배경 */
+.wt-backdrop { position: fixed; inset: 0; z-index: 15; background: transparent; }
+.wt-backdrop[hidden] { display: none; }
 
 /* 설정 서랍 */
 .wt-drawer {
