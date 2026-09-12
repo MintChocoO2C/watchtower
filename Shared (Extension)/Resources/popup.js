@@ -1,4 +1,5 @@
 const toggle = document.getElementById("auto-pip-toggle");
+const pressFfToggle = document.getElementById("press-ff-toggle");
 const ytLogoToggle = document.getElementById("yt-logo-miniplayer-toggle");
 const ytHideShortsToggle = document.getElementById("yt-hide-shorts-toggle");
 const debugToggle = document.getElementById("debug-toggle");
@@ -16,10 +17,11 @@ document.querySelectorAll("[data-i18n]").forEach(el => {
 
 // 저장된 설정 불러와서 토글/입력에 반영
 browser.storage.local.get([
-    "autoPiPEnabled", "ytLogoMiniplayerEnabled", "ytHideShortsEnabled",
+    "autoPiPEnabled", "pressFastForwardEnabled", "ytLogoMiniplayerEnabled", "ytHideShortsEnabled",
     "debugEnabled"
 ]).then((result) => {
     toggle.checked = result.autoPiPEnabled ?? false;
+    pressFfToggle.checked = result.pressFastForwardEnabled ?? false;
     ytLogoToggle.checked = result.ytLogoMiniplayerEnabled ?? false;
     ytHideShortsToggle.checked = result.ytHideShortsEnabled ?? false;
     debugToggle.checked = result.debugEnabled ?? false;
@@ -34,6 +36,11 @@ function showStatus(msg) {
 toggle.addEventListener("change", () => {
     browser.storage.local.set({ autoPiPEnabled: toggle.checked });
     showStatus(t(toggle.checked ? "autoPipOn" : "autoPipOff"));
+});
+
+pressFfToggle.addEventListener("change", () => {
+    browser.storage.local.set({ pressFastForwardEnabled: pressFfToggle.checked });
+    showStatus(t(pressFfToggle.checked ? "pressFastForwardOn" : "pressFastForwardOff"));
 });
 
 ytLogoToggle.addEventListener("change", () => {

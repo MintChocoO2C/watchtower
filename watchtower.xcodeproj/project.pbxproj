@@ -118,6 +118,7 @@
 				Resources/popup.css,
 				Resources/popup.html,
 				Resources/popup.js,
+				"Resources/speed.js",
 				"Resources/wt-core.js",
 				SafariWebExtensionHandler.swift,
 			);
@@ -135,6 +136,7 @@
 				Resources/popup.css,
 				Resources/popup.html,
 				Resources/popup.js,
+				"Resources/speed.js",
 				"Resources/wt-core.js",
 				SafariWebExtensionHandler.swift,
 			);

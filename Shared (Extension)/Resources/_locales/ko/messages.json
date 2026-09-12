@@ -24,6 +24,20 @@
         "message": "탭 전환 시 자동 PiP",
         "description": "Description for Auto PiP feature"
     },
+    "pressFastForwardLabel": {
+        "message": "눌러서 빨리 감기",
+        "description": "Feature label for press-and-hold fast-forward"
+    },
+    "pressFastForwardDesc": {
+        "message": "영상을 길게 누르면 2배속",
+        "description": "Description for press-to-fast-forward feature"
+    },
+    "pressFastForwardOn": {
+        "message": "눌러서 빨리 감기 ON"
+    },
+    "pressFastForwardOff": {
+        "message": "눌러서 빨리 감기 OFF"
+    },
     "ytMiniplayerLabel": {
         "message": "YouTube 미니플레이어",
         "description": "Feature label for YouTube miniplayer"

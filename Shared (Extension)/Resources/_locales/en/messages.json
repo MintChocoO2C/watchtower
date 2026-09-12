@@ -24,6 +24,20 @@
         "message": "Auto PiP on tab switch",
         "description": "Description for Auto PiP feature"
     },
+    "pressFastForwardLabel": {
+        "message": "Press to Fast-Forward",
+        "description": "Feature label for press-and-hold fast-forward"
+    },
+    "pressFastForwardDesc": {
+        "message": "Hold on a video for 2× speed",
+        "description": "Description for press-to-fast-forward feature"
+    },
+    "pressFastForwardOn": {
+        "message": "Press to Fast-Forward ON"
+    },
+    "pressFastForwardOff": {
+        "message": "Press to Fast-Forward OFF"
+    },
     "ytMiniplayerLabel": {
         "message": "YouTube Miniplayer",
         "description": "Feature label for YouTube miniplayer"
