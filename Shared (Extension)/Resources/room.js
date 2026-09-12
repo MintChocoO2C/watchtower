@@ -99,7 +99,7 @@
         body.replaceChildren();
         body.className = "wt-room";
 
-        const bar = el("header", { class: "wt-bar" }, [
+        const bar = el("header", { class: "wt-bar", onpointerenter: keepChatDock }, [
             el("span", { class: "wt-title", text: t("roomTitle") }),
             el("span", { class: "wt-count", id: "wt-count" }),
             el("button", { class: "wt-btn wt-unfocus", type: "button", onclick: exitFocus, text: "← " + t("roomBackToGrid") }),
@@ -114,7 +114,7 @@
             el("p", { class: "wt-empty", id: "wt-empty", text: t("roomEmpty") }),
         ]);
         // 종료된 방송 선반: 격자에서 빼서 여기 모아 두고, 다시 켜지면 격자로 돌아간다
-        const shelf = el("footer", { class: "wt-shelf", id: "wt-shelf", hidden: "" }, [
+        const shelf = el("footer", { class: "wt-shelf", id: "wt-shelf", hidden: "", onpointerenter: keepChatDock }, [
             el("span", { class: "wt-shelf-label", text: t("roomOfflineShelf") }),
             el("div", { class: "wt-shelf-list", id: "wt-shelf-list" }),
         ]);
@@ -122,7 +122,7 @@
         const backdrop = el("div", { class: "wt-backdrop", id: "wt-backdrop", hidden: "", onclick: closeOverlays });
         // 채팅 서랍(집중 보기 전용): 치지직 팝업 채팅(/live/<id>/chat)을 담고, 가장자리에 숨어 있다가
         // 마우스를 가져가면 안쪽으로 나온다. 위치(좌/우)는 설정에서 바꾼다.
-        const chat = el("div", { class: "wt-chatdock", id: "wt-chatdock", hidden: "", onpointerenter: openChatDock }, [
+        const chat = el("div", { class: "wt-chatdock", id: "wt-chatdock", hidden: "", onpointerenter: openChatDock, onpointerleave: scheduleCloseChatDock }, [
             el("div", { class: "wt-chatdock-tab", title: t("roomChatTab") }, [chatIcon()]),
             el("iframe", { id: "wt-chat-frame", title: t("roomChatTab"), src: "about:blank" }),
         ]);
@@ -151,10 +151,15 @@
         svg.innerHTML = '<path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linejoin="round"/>';
         return svg;
     }
-    // 채팅 서랍: 서랍(손잡이·채팅)에 마우스가 들어오면 열리고, 영상 영역에 들어가면 닫힌다.
-    // (서랍 밖이라도 상단 바·선반 위에서는 열린 채로 둔다. 채팅 입력 중이면 CSS :focus-within 이 열어 둔다)
-    function openChatDock() { document.getElementById("wt-chatdock")?.classList.add("open"); }
-    function closeChatDock() { document.getElementById("wt-chatdock")?.classList.remove("open"); }
+    // 채팅 서랍 규칙: 서랍(손잡이·채팅)에 마우스가 들어오면 열리고, 서랍 밖으로 나가면 닫힌다.
+    // 예외: 상단 바·선반으로 나간 경우는 열린 채 둔다(짧은 유예 안에 그쪽 pointerenter 가 오면 취소).
+    // 서랍 이탈은 부모 문서의 pointerleave 로 잡으므로 채팅 iframe → 영상 iframe 으로 바로 넘어가도 닫힌다.
+    // 채팅 입력 중이면 CSS :focus-within 이 열어 둔다.
+    let chatCloseTimer = null;
+    function openChatDock() { clearTimeout(chatCloseTimer); document.getElementById("wt-chatdock")?.classList.add("open"); }
+    function closeChatDock() { clearTimeout(chatCloseTimer); document.getElementById("wt-chatdock")?.classList.remove("open"); }
+    function scheduleCloseChatDock() { clearTimeout(chatCloseTimer); chatCloseTimer = setTimeout(closeChatDock, 120); }
+    function keepChatDock() { clearTimeout(chatCloseTimer); }
     function focusIcon() {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "13"); svg.setAttribute("height", "13");
