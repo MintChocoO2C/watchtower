@@ -10,75 +10,7 @@ browser.runtime.onMessage.addListener((request, sender) => {
                 return browser.tabs.sendMessage(tabs[0].id, request);
             });
     }
-
-    // 공용 탭 서비스: 배경 새 탭으로 URL 열기 (content script는 tabs.create 직접 호출 불가)
-    if (request.action === "wt:openTab" && request.url) {
-        return browser.tabs.create({ url: request.url, active: false });
-    }
-
-    // 공용 탭 서비스: 탭 조작 (vimium 키맵 / 마우스 제스처 등이 공용으로 사용)
-    if (request.action === "wt:tabs") {
-        return handleTabOp(request.op, sender);
-    }
 });
-
-// === 닫은-탭 스택 (탭 복원 — sessions.restore 폴백용) ===
-const wtTabUrlMap = new Map();   // tabId -> {url, title}
-const wtClosedStack = [];        // [{url, title}], 최신이 끝
-const WT_CLOSED_MAX = 25;
-
-browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if ((changeInfo.url || changeInfo.title) && tab.url) {
-        wtTabUrlMap.set(tabId, { url: tab.url, title: tab.title || "" });
-    }
-});
-
-browser.tabs.onRemoved.addListener((tabId) => {
-    const info = wtTabUrlMap.get(tabId);
-    wtTabUrlMap.delete(tabId);
-    if (info && info.url && !/^(about:|chrome:|safari-web-extension:)/.test(info.url)) {
-        wtClosedStack.push(info);
-        if (wtClosedStack.length > WT_CLOSED_MAX) wtClosedStack.shift();
-    }
-});
-
-async function handleTabOp(op, sender) {
-    try {
-        if (op === "next" || op === "prev") {
-            const tabs = await browser.tabs.query({ currentWindow: true });
-            if (tabs.length < 2) return;
-            const active = tabs.findIndex(t => t.active);
-            if (active < 0) return;
-            const target = op === "next"
-                ? (active + 1) % tabs.length
-                : (active - 1 + tabs.length) % tabs.length;
-            await browser.tabs.update(tabs[target].id, { active: true });
-        } else if (op === "new") {
-            await browser.tabs.create({});
-        } else if (op === "close") {
-            if (sender?.tab?.id != null) {
-                await browser.tabs.remove(sender.tab.id);
-            }
-        } else if (op === "restore") {
-            // 1차: 브라우저 네이티브 sessions.restore
-            try {
-                if (browser.sessions?.restore) {
-                    await browser.sessions.restore();
-                    return;
-                }
-            } catch (e) {
-                console.warn("[WT] sessions.restore failed, falling back:", e?.message);
-            }
-            // 2차: 자체 스택에서 복원
-            const last = wtClosedStack.pop();
-            if (last?.url) {
-                await browser.tabs.create({ url: last.url, active: true });
-            }
-        }
-    } catch (e) {
-        console.error("[WT] wt:tabs error:", op, e?.name, e?.message);
-    }
-}
 
 // storage 변경 → 열린 모든 탭의 content script로 relay
 // (Safari에서 content script의 storage.onChanged가 신뢰성 없음)
