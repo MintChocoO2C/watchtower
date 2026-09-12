@@ -2,7 +2,7 @@
 
 > A Safari Web Extension for smoother YouTube, Chzzk, and livestream viewing.
 
-Watchtower bundles small quality-of-life features for watching videos on Safari, plus a Vim-style keyboard navigation mode inspired by [Vimium](https://github.com/philc/vimium).
+Watchtower bundles small quality-of-life features for watching videos on Safari.
 
 [한국어 README](README.ko.md)
 
@@ -12,8 +12,7 @@ Watchtower bundles small quality-of-life features for watching videos on Safari,
 - **YouTube Miniplayer** — Click the YouTube logo on a `/watch` page to switch to the miniplayer; click the miniplayer again to return to the full player.
 - **Hide YouTube Shorts** — Removes the Shorts section from the home feed and the Shorts entry from the sidebar.
 - **Video Frame Capture** — Right-click any `<video>` element to copy or download the current frame as a PNG.
-- **Vimium-style Keyboard Navigation** — Vim keybindings for scrolling, navigation, and link hints. Configurable scroll step, scroll behavior, and key timeout.
-- **Mouse Gestures** — Hold the wheel (middle) button and drag to go back/forward, manipulate tabs, and more. Live feedback via a trail and an arrow HUD. (Physical mouse only.)
+- **Press to Fast-Forward** — Press and hold on a video to play at 2× speed; release to restore the original speed. (Works on any `<video>` — Chzzk VOD, YouTube, etc.)
 
 ## Installation
 
@@ -30,109 +29,21 @@ If macOS blocks the unsigned extension, see Apple's docs on [running unsigned Sa
 
 ## Usage
 
-Click the toolbar icon to open the popup. Each feature has its own toggle. Vimium has additional configuration (scroll step, scroll style, key timeout).
+Click the toolbar icon to open the popup. Each feature has its own toggle.
 
-### Vimium Keymap
+### Press to Fast-Forward
 
-Toggle Vimium ON in the popup. The HUD in the bottom-right shows current mode and the active key sequence.
-
-#### Modes
-
-- **NORMAL** — default; key commands are active
-- **INSERT** — automatically entered when an editable element is focused; only `Esc` is captured (to leave INSERT and blur)
-- **HINT** — entered with `f` / `F` / `yf`; type a hint label to act on a link
-
-#### Scrolling and Navigation
-
-| Key | Action |
-|---|---|
-| `j` / `k` | Scroll down / up (configurable, default 60px) |
-| `h` / `l` | Scroll left / right |
-| `d` / `u` | Scroll half-page down / up |
-| `gg` / `G` | Jump to top / bottom |
-| `0` / `$` | Jump to leftmost / rightmost |
-| `H` / `L` | History back / forward |
-| `r` | Reload page |
-
-Use a number prefix to repeat: `5j` scrolls down 5 × step.
-
-#### Tabs
-
-| Key | Action |
-|---|---|
-| `J` / `gT` | Previous tab (wraps around) |
-| `K` / `gt` | Next tab (wraps around) |
-| `t` | New tab |
-| `x` | Close current tab |
-| `X` | Reopen recently closed tab |
-
-#### Link Hints
-
-| Key | Action |
-|---|---|
-| `f` | Show hints; type the label to click in the current tab |
-| `F` | Show hints; type the label to open in a new background tab |
-| `yf` | Show hints; type the label to copy the URL to the clipboard |
-
-In HINT mode: type label characters to filter; `Esc` cancels; `Backspace` removes the last character.
-
-#### Mode Control
-
-| Key | Action |
-|---|---|
-| `Esc` | Cancel current sequence; leave INSERT or HINT mode |
-
-### Configuration
-
-In the popup, the Vimium section exposes:
-
-- **Scroll step (px)** — pixels per `j` / `k` (default 60)
-- **Scroll style** — Smooth (animated) or Instant
-- **Key timeout (ms)** — how long to wait for the second key in a sequence like `gg` (default 1000)
-
-Settings apply immediately; no page reload needed.
-
-### Korean IME
-
-Vimium normalizes keystrokes via `KeyboardEvent.code` (physical key), so commands work even when a Korean IME is active. You can keep typing in Korean apps and switch to Safari without toggling input source.
-
-### Mouse Gestures
-
-Toggle **Mouse Gestures** ON in the popup. **Hold the wheel (middle) button and drag** to run an action by direction. A trail is drawn while you drag, and a bottom HUD shows the recognized direction (arrows) and action name in real time.
-
-> Why the wheel button: macOS Safari pops the right-click menu on button *press*, and once suppressed it cannot be re-shown — making right-click gestures impossible. The wheel button has no such conflict, so the **right-click menu and frame capture keep working**. (Physical mouse only — trackpads have no wheel button.)
-
-#### Navigation
-
-| Gesture | Action |
-|---|---|
-| ← | Back |
-| → | Forward |
-| ↑ | Top |
-| ↓ | Bottom |
-| ↓↑ | Reload |
-
-#### Tabs
-
-| Gesture | Action |
-|---|---|
-| ↓→ | Close tab |
-| ↓← | Reopen tab |
-| ↑→ | Next tab |
-| ↑← | Previous tab |
-| →↓ | New tab |
-
-A plain wheel-click (no drag) behaves normally (links open in a new tab).
+Toggle **Press to Fast-Forward** ON in the popup. Press and **hold** the left mouse button on a video to play at 2× speed; release to restore the original speed. Fast-forward only starts after a short hold, so it doesn't conflict with a quick click (play/pause) or a timeline drag (seek).
 
 ## Tech Stack
 
 - **Swift** — host app + extension entry point (`SafariWebExtensionHandler`)
-- **JavaScript** — `manifest_version: 3` web extension (background, wt-core, content, vimium, gestures, page-script, popup)
+- **JavaScript** — `manifest_version: 3` web extension (background, wt-core, content, speed, page-script, popup)
 - **Xcode** — build and packaging
 
 The extension uses three execution contexts:
 - A service worker (`background.js`) — owns context menus, message routing, and storage relay
-- Isolated content scripts (`wt-core.js` → `content.js` → `vimium.js` → `gestures.js`) — DOM-aware; cannot access page globals. `wt-core.js` loads first and exposes shared services (`window.WT`: logging, settings subscription, tab ops) that the other features build on
+- Isolated content scripts (`wt-core.js` → `content.js` → `speed.js`) — DOM-aware; cannot access page globals. `wt-core.js` loads first and exposes shared services (`window.WT`: logging, settings subscription) that the other features build on
 - A MAIN-world script (`page-script.js`) — runs in the page's JS context for APIs the page exposes
 
 Storage changes are relayed by the background script because Safari's `storage.onChanged` is unreliable inside content scripts.
@@ -143,5 +54,4 @@ Storage changes are relayed by the background script because Safari's `storage.o
 
 ## Acknowledgments
 
-- Vim-style keybindings and link hint behavior are inspired by [Vimium](https://github.com/philc/vimium) by Phil Crosby. No code was copied — only the conceptual design.
 - Built on Apple's Safari Web Extension App Xcode template.

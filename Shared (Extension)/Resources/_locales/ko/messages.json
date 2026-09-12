@@ -13,9 +13,6 @@
     "sectionYouTube": {
         "message": "YouTube"
     },
-    "sectionNavigation": {
-        "message": "탐색"
-    },
     "sectionDeveloper": {
         "message": "개발자"
     },
@@ -26,6 +23,20 @@
     "autoPipDesc": {
         "message": "탭 전환 시 자동 PiP",
         "description": "Description for Auto PiP feature"
+    },
+    "pressFastForwardLabel": {
+        "message": "눌러서 빨리 감기",
+        "description": "Feature label for press-and-hold fast-forward"
+    },
+    "pressFastForwardDesc": {
+        "message": "영상을 길게 누르면 2배속",
+        "description": "Description for press-to-fast-forward feature"
+    },
+    "pressFastForwardOn": {
+        "message": "눌러서 빨리 감기 ON"
+    },
+    "pressFastForwardOff": {
+        "message": "눌러서 빨리 감기 OFF"
     },
     "ytMiniplayerLabel": {
         "message": "YouTube 미니플레이어",
@@ -78,79 +89,6 @@
     "downloadVideoFrame": {
         "message": "동영상 프레임 다운로드",
         "description": "Context menu item to download the current video frame as a file"
-    },
-    "mouseGestureLabel": {
-        "message": "마우스 제스처",
-        "description": "Feature label for mouse gesture navigation"
-    },
-    "mouseGestureDesc": {
-        "message": "휠 버튼 드래그로 탐색 (마우스 전용)",
-        "description": "Description for the mouse gesture feature"
-    },
-    "mouseGestureOn": {
-        "message": "마우스 제스처 ON"
-    },
-    "mouseGestureOff": {
-        "message": "마우스 제스처 OFF"
-    },
-    "gestureBack": {
-        "message": "뒤로"
-    },
-    "gestureForward": {
-        "message": "앞으로"
-    },
-    "gestureTop": {
-        "message": "맨 위로"
-    },
-    "gestureBottom": {
-        "message": "맨 아래로"
-    },
-    "gestureReload": {
-        "message": "새로고침"
-    },
-    "gestureCloseTab": {
-        "message": "탭 닫기"
-    },
-    "gestureRestoreTab": {
-        "message": "닫은 탭 복원"
-    },
-    "gestureNextTab": {
-        "message": "다음 탭"
-    },
-    "gesturePrevTab": {
-        "message": "이전 탭"
-    },
-    "gestureNewTab": {
-        "message": "새 탭"
-    },
-    "vimiumLabel": {
-        "message": "Vimium",
-        "description": "Feature label for Vim-style keyboard navigation"
-    },
-    "vimiumDesc": {
-        "message": "Vim \uc2a4\ud0c0\uc77c \ud0a4\ubcf4\ub4dc \ud0d0\uc0c9",
-        "description": "Description for Vimium feature"
-    },
-    "vimiumOn": {
-        "message": "Vimium ON"
-    },
-    "vimiumOff": {
-        "message": "Vimium OFF"
-    },
-    "vimiumScrollStepLabel": {
-        "message": "스크롤 간격"
-    },
-    "vimiumScrollBehaviorLabel": {
-        "message": "스크롤 방식"
-    },
-    "vimiumBehaviorSmooth": {
-        "message": "부드럽게"
-    },
-    "vimiumBehaviorInstant": {
-        "message": "즉시"
-    },
-    "vimiumKeyTimeoutLabel": {
-        "message": "키 입력 대기"
     },
     "debugLabel": {
         "message": "디버그 로깅"

@@ -26,6 +26,17 @@
                 <span class="toggle-slider"></span>
             </label>
         </div>
+        <div class="feature-divider"></div>
+        <div class="feature-row">
+            <div class="feature-info">
+                <span class="feature-label" data-i18n="pressFastForwardLabel">Press to Fast-Forward</span>
+                <span class="feature-desc" data-i18n="pressFastForwardDesc">Hold on a video for 2× speed</span>
+            </div>
+            <label class="toggle">
+                <input type="checkbox" id="press-ff-toggle">
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
     </div>
 
     <div class="section">
@@ -50,56 +61,6 @@
                 <input type="checkbox" id="yt-hide-shorts-toggle">
                 <span class="toggle-slider"></span>
             </label>
-        </div>
-    </div>
-
-    <div class="section">
-        <div class="section-header" data-i18n="sectionNavigation">Navigation</div>
-        <div class="feature-row">
-            <div class="feature-info">
-                <span class="feature-label" data-i18n="mouseGestureLabel">Mouse Gestures</span>
-                <span class="feature-desc" data-i18n="mouseGestureDesc">Right-drag to navigate (mouse only)</span>
-            </div>
-            <label class="toggle">
-                <input type="checkbox" id="mouse-gesture-toggle">
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="feature-divider"></div>
-        <div class="feature-row">
-            <div class="feature-info">
-                <span class="feature-label" data-i18n="vimiumLabel">Vimium</span>
-                <span class="feature-desc" data-i18n="vimiumDesc">Vim-style keyboard navigation</span>
-            </div>
-            <label class="toggle">
-                <input type="checkbox" id="vimium-toggle">
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <div class="feature-sub" id="vimium-sub">
-            <div class="sub-row">
-                <span class="sub-label" data-i18n="vimiumScrollStepLabel">Scroll step</span>
-                <span class="sub-input">
-                    <input type="number" id="vimium-scroll-step" min="1" max="9999">
-                    <span class="sub-unit">px</span>
-                </span>
-            </div>
-            <div class="sub-row">
-                <span class="sub-label" data-i18n="vimiumScrollBehaviorLabel">Scroll style</span>
-                <span class="sub-input">
-                    <select id="vimium-scroll-behavior">
-                        <option value="smooth" data-i18n="vimiumBehaviorSmooth">Smooth</option>
-                        <option value="auto" data-i18n="vimiumBehaviorInstant">Instant</option>
-                    </select>
-                </span>
-            </div>
-            <div class="sub-row">
-                <span class="sub-label" data-i18n="vimiumKeyTimeoutLabel">Key timeout</span>
-                <span class="sub-input">
-                    <input type="number" id="vimium-key-timeout" min="100" max="10000" step="100">
-                    <span class="sub-unit">ms</span>
-                </span>
-            </div>
         </div>
     </div>
 

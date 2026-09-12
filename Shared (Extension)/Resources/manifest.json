@@ -21,7 +21,7 @@
 
     "content_scripts": [
         {
-            "js": [ "wt-core.js", "content.js", "vimium.js", "gestures.js" ],
+            "js": [ "wt-core.js", "content.js", "speed.js" ],
             "matches": [ "<all_urls>" ],
             "run_at": "document_idle"
         },
@@ -38,5 +38,5 @@
         "default_icon": "images/toolbar-icon.svg"
     },
 
-    "permissions": [ "activeTab", "storage", "contextMenus", "clipboardWrite", "scripting", "tabs", "sessions" ]
+    "permissions": [ "activeTab", "storage", "contextMenus", "clipboardWrite", "scripting" ]
 }
