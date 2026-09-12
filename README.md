@@ -2,12 +2,13 @@
 
 > A Safari Web Extension for smoother YouTube, Chzzk, and livestream viewing.
 
-Watchtower bundles small quality-of-life features for watching videos on Safari.
+Watchtower bundles a **Situation Room** for watching several Chzzk channels on one screen, plus small quality-of-life features for watching videos on Safari.
 
 [한국어 README](README.ko.md)
 
 ## Features
 
+- **Situation Room** — Click the toolbar icon to watch up to 16 Chzzk channels in one grid. Pick channels from your follows, click a tile to choose which one plays sound. Streams going offline or coming back are reflected automatically.
 - **Auto Picture-in-Picture** — Automatically enters PiP when you switch tabs while a video is playing, and restores inline playback when you return.
 - **YouTube Miniplayer** — Click the YouTube logo on a `/watch` page to switch to the miniplayer; click the miniplayer again to return to the full player.
 - **Hide YouTube Shorts** — Removes the Shorts section from the home feed and the Shorts entry from the sidebar.
@@ -32,7 +33,19 @@ If macOS blocks the unsigned extension, see Apple's docs on [running unsigned Sa
 
 ## Usage
 
-Click the toolbar icon to open the popup. Each feature has its own toggle.
+Click the ⚡ toolbar icon to open the **Situation Room**. Feature toggles live behind the gear (Settings) in the room's top-right corner.
+
+### Situation Room
+
+Watch several Chzzk channels on one screen without switching tabs.
+
+- **Add channels**: `＋ Add from follows` (live channels first; requires a Chzzk login) or `Add by URL` (paste a live/channel URL or a channel ID). Up to 16.
+- **Grid**: 1–4 columns chosen automatically from the channel count, tiles stay 16:9, and the page scrolls vertically when it overflows.
+- **Sound**: only one channel plays sound. Press the `Muted` button at a tile's bottom-right to move sound there; the rest are muted. Safari only allows unmuting on a click.
+- **Live status**: checked every minute; offline channels show `Offline` and reload automatically when they come back.
+- The channel list and sound choice are saved and restored next time.
+
+The room lives at `chzzk.naver.com/wt-room`. Each live is embedded as a same-origin iframe inside the Chzzk domain, so your login carries over.
 
 ### Press to Fast-Forward
 
@@ -41,12 +54,12 @@ Toggle **Press to Fast-Forward** ON in the popup. Press and **hold** the left mo
 ## Tech Stack
 
 - **Swift** — host app + extension entry point (`SafariWebExtensionHandler`)
-- **JavaScript** — `manifest_version: 3` web extension (background, wt-core, content, speed, page-script, popup)
+- **JavaScript** — `manifest_version: 3` web extension (background, wt-core, content, speed, room, page-script)
 - **Xcode** — build and packaging
 
 The extension uses three execution contexts:
-- A service worker (`background.js`) — owns context menus, message routing, and storage relay
-- Isolated content scripts (`wt-core.js` → `content.js` → `speed.js`) — DOM-aware; cannot access page globals. `wt-core.js` loads first and exposes shared services (`window.WT`: logging, settings subscription) that the other features build on
+- A service worker (`background.js`) — owns the toolbar action (opens the room), context menus, and storage relay
+- Isolated content scripts (`wt-core.js` → `content.js` → `speed.js`; on the room path, `wt-core.js` → `room.js`) — DOM-aware; cannot access page globals. `wt-core.js` loads first and exposes shared services (`window.WT`: logging, settings subscription) that the other features build on
 - A MAIN-world script (`page-script.js`) — runs in the page's JS context for APIs the page exposes
 
 Storage changes are relayed by the background script because Safari's `storage.onChanged` is unreliable inside content scripts.

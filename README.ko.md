@@ -2,12 +2,13 @@
 
 > 유튜브, 치지직 등 인터넷 방송을 쾌적하게 보기 위한 Safari 웹 확장 프로그램.
 
-Watchtower는 Safari에서 영상 시청을 더 편하게 만드는 작은 기능들을 제공합니다.
+Watchtower는 치지직 여러 채널을 한 화면에서 보는 **상황실**과, Safari에서 영상 시청을 더 편하게 만드는 작은 기능들을 제공합니다.
 
 [English README](README.md)
 
 ## 기능
 
+- **상황실** — 툴바 아이콘을 누르면 치지직 채널을 최대 16개까지 한 화면 격자로 봅니다. 팔로우 목록에서 채널을 고르고, 타일을 눌러 소리를 낼 채널을 정합니다. 방송 종료·재개를 자동으로 반영합니다.
 - **Auto Picture-in-Picture** — 영상 재생 중 탭을 전환하면 자동으로 PiP 모드로 진입하고, 돌아오면 인라인 재생으로 복원합니다.
 - **YouTube 미니플레이어** — `/watch` 페이지에서 YouTube 로고를 클릭하면 미니플레이어로 전환되고, 미니플레이어를 다시 클릭하면 전체 플레이어로 복귀합니다.
 - **YouTube Shorts 숨기기** — 홈 피드의 Shorts 섹션과 사이드바 Shorts 메뉴를 제거합니다.
@@ -32,7 +33,19 @@ macOS 전용입니다 (iOS 미지원).
 
 ## 사용법
 
-도구 막대 아이콘을 클릭하면 팝업이 열립니다. 각 기능마다 토글이 있습니다.
+도구 막대의 ⚡ 아이콘을 클릭하면 **상황실**이 열립니다. 각 기능의 켜고 끄기는 상황실 오른쪽 위 톱니(설정)에서 합니다.
+
+### 상황실
+
+치지직 채널 여러 개를 탭 이동 없이 한 화면에서 봅니다.
+
+- **채널 추가**: `＋ 팔로우에서 추가`(라이브 중인 채널이 먼저 보입니다. 치지직 로그인이 필요합니다) 또는 `URL로 추가`(라이브·채널 URL이나 채널 ID 붙여넣기). 최대 16개.
+- **격자**: 채널 수에 따라 1~4열로 자동 조정되고 타일은 16:9를 유지합니다. 한 화면을 넘치면 아래로 스크롤합니다.
+- **소리**: 한 채널만 소리가 납니다. 타일 오른쪽 아래 `음소거` 버튼을 누르면 그 채널로 소리가 옮겨가고 나머지는 음소거됩니다. Safari 정책상 소리는 클릭으로만 켤 수 있습니다.
+- **방송 상태**: 1분마다 확인해 종료된 채널은 `방송 종료`로 표시하고, 다시 켜지면 자동으로 다시 불러옵니다.
+- 채널 목록과 소리 채널은 저장되어 다음에 열 때 복원됩니다.
+
+상황실은 `chzzk.naver.com/wt-room` 주소에서 열립니다. 치지직 도메인 안에서 같은 출처 iframe으로 각 라이브를 띄우기 때문에 로그인 상태가 유지됩니다.
 
 ### 눌러서 빨리감기
 
@@ -41,12 +54,12 @@ macOS 전용입니다 (iOS 미지원).
 ## 기술 스택
 
 - **Swift** — 호스트 앱 + 확장 엔트리 (`SafariWebExtensionHandler`)
-- **JavaScript** — `manifest_version: 3` 웹 확장 (background, wt-core, content, speed, page-script, popup)
+- **JavaScript** — `manifest_version: 3` 웹 확장 (background, wt-core, content, speed, room, page-script)
 - **Xcode** — 빌드 및 패키징
 
 확장은 3개 실행 컨텍스트 사용:
-- 서비스 워커 (`background.js`) — 컨텍스트 메뉴, 메시지 라우팅, 스토리지 relay 담당
-- isolated content scripts (`wt-core.js` → `content.js` → `speed.js`) — DOM 접근 가능; 페이지 전역 변수 접근 불가. `wt-core.js`가 가장 먼저 로드되어 공용 서비스(`window.WT`: 로깅·설정 구독)를 노출하고 나머지 기능이 이를 공유
+- 서비스 워커 (`background.js`) — 툴바 아이콘(상황실 열기), 컨텍스트 메뉴, 스토리지 relay 담당
+- isolated content scripts (`wt-core.js` → `content.js` → `speed.js`; 상황실 경로에서는 `wt-core.js` → `room.js`) — DOM 접근 가능; 페이지 전역 변수 접근 불가. `wt-core.js`가 가장 먼저 로드되어 공용 서비스(`window.WT`: 로깅·설정 구독)를 노출하고 나머지 기능이 이를 공유
 - MAIN-world script (`page-script.js`) — 페이지의 JS 컨텍스트에서 실행, 페이지 전역 API 접근
 
 Safari의 `storage.onChanged`가 content script에서 신뢰성이 없어 background 스크립트가 변경 사항을 relay합니다.
