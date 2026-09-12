@@ -150,13 +150,20 @@
 .wt-chatdock[data-side="right"] { right: 0; transform: translateX(calc(100% - 20px)); }
 .wt-chatdock[data-side="left"]  { left: 0;  flex-direction: row-reverse; transform: translateX(calc(-100% + 20px)); }
 .wt-chatdock.open, .wt-chatdock:focus-within { transform: none; }
+/* 손잡이: 영상을 가리지 않게 반투명. 마우스 반응 영역은 세로 전체, 보이는 건 가운데 작은 알약 하나 */
 .wt-chatdock-tab {
     width: 20px; flex-shrink: 0; display: grid; place-items: center;
-    background: var(--wt-surface-2); color: var(--wt-muted); border: 1px solid var(--wt-border-strong);
+    background: transparent; color: rgba(255,255,255,.75);
 }
-.wt-chatdock[data-side="right"] .wt-chatdock-tab { border-right: 0; border-radius: 6px 0 0 6px; }
-.wt-chatdock[data-side="left"]  .wt-chatdock-tab { border-left: 0;  border-radius: 0 6px 6px 0; }
-.wt-chatdock.open .wt-chatdock-tab, .wt-chatdock:focus-within .wt-chatdock-tab { background: var(--wt-accent); color: var(--wt-accent-ink); border-color: transparent; }
+.wt-chatdock-tab svg {
+    box-sizing: content-box; padding: 14px 2px; border-radius: 999px;
+    background: rgba(0,0,0,.35); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+    transition: background .15s ease, color .15s ease;
+}
+.wt-chatdock[data-side="right"] .wt-chatdock-tab svg { border-radius: 999px 0 0 999px; padding-right: 1px; }
+.wt-chatdock[data-side="left"]  .wt-chatdock-tab svg { border-radius: 0 999px 999px 0; padding-left: 1px; }
+.wt-chatdock.open .wt-chatdock-tab, .wt-chatdock:focus-within .wt-chatdock-tab { color: var(--wt-accent-ink); }
+.wt-chatdock.open .wt-chatdock-tab svg, .wt-chatdock:focus-within .wt-chatdock-tab svg { background: var(--wt-accent); }
 .wt-chatdock iframe { flex: 1; min-width: 0; border: 1px solid var(--wt-border-strong); background: #141517; box-shadow: 0 10px 30px var(--wt-shadow); }
 .wt-chatdock[data-side="right"] iframe { border-radius: 0 0 0 6px; }
 .wt-chatdock[data-side="left"]  iframe { border-radius: 0 0 6px 0; }
