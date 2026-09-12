@@ -1,9 +1,12 @@
 // Watchtower — 눌러서 빨리 감기 (격리 세계)
 // 역할: 영상을 좌클릭으로 길게 누르면 2배속, 떼면 원래 속도로 복원.
-//       범용 <video> 대상(치지직 VOD·YouTube 등) — 페이지 플레이어 내부에
+//       범용 <video> 대상(치지직 VOD 등) — 페이지 플레이어 내부에
 //       의존하지 않고 video.playbackRate를 직접 제어한다.
 //       cheese-knife(MIT)의 press-to-fast-forward 아이디어를 참고해 범용화.
 //       참고: https://github.com/jebibot/cheese-knife
+//
+// 플랫폼이 같은 기능을 자체 제공하면 그쪽에 맡기고 우리는 개입하지 않는다.
+// (YouTube: 플레이어를 길게 누르면 2배속 — 우리가 겹치면 배속이 이중으로 꼬인다)
 
 (() => {
     "use strict";
@@ -14,6 +17,15 @@
     const MOVE_TOLERANCE = 10;  // 이만큼 움직이면 드래그(탐색)로 보고 취소(px)
     const SPEED = 2;
     const IND_ID = "wt-ff-indicator";
+
+    // 자체 '길게 눌러 2배속'을 제공하는 사이트 — 여기서는 아무것도 하지 않는다
+    const NATIVE_HOSTS = [/(^|\.)youtube\.com$/];
+    // 영상 위에 겹친 컨트롤(메뉴·버튼·진행 바·입력창)을 누른 경우는 빨리감기가 아니다
+    const CONTROL_SELECTOR = [
+        "button", "a[href]", "input", "select", "textarea", "[contenteditable]",
+        "[role=button]", "[role=slider]", "[role=menu]", "[role=menuitem]",
+        "[role=menuitemradio]", "[role=menuitemcheckbox]", "[role=listbox]", "[role=option]"
+    ].join(",");
 
     let enabled = false;
     let pressTimer = null;
@@ -36,6 +48,7 @@
 
     function onMouseDown(e) {
         if (e.button !== 0) return;          // 좌클릭만
+        if (e.target?.closest?.(CONTROL_SELECTOR)) return;   // 컨트롤 위에서는 발동 안 함
         const v = videoAtPoint(e.clientX, e.clientY);
         if (!v) return;
         startX = e.clientX;
@@ -82,16 +95,20 @@
         if (video && wasPaused) video.pause();
         hideIndicator();
         ffActive = false;
+        const r = video.getBoundingClientRect();
         video = null;
-        suppressNextClick();   // 빨리감기 후의 click이 재생/일시정지를 토글하지 않게
+        suppressNextClick(r);  // 빨리감기 후의 click이 재생/일시정지를 토글하지 않게
     }
 
-    // 빨리감기 종료 직후 발생하는 click 1회를 삼킨다 (play/pause 오작동 방지)
-    function suppressNextClick() {
+    // 빨리감기 종료 직후 영상 위에서 발생하는 click 1회를 삼킨다 (play/pause 오작동 방지).
+    // 영상 밖 클릭은 그대로 통과시킨다.
+    function suppressNextClick(rect) {
         const swallow = (e) => {
+            cleanup();
+            if (e.clientX < rect.left || e.clientX > rect.right ||
+                e.clientY < rect.top || e.clientY > rect.bottom) return;
             e.preventDefault();
             e.stopPropagation();
-            cleanup();
         };
         const cleanup = () => document.removeEventListener("click", swallow, true);
         document.addEventListener("click", swallow, true);
@@ -139,6 +156,10 @@
     }
 
     // --- 설정 로드 + 변경 감지 (공용 기반 WT) ---
+    if (NATIVE_HOSTS.some(re => re.test(location.hostname))) {
+        WT.log("speed", "자체 배속 기능이 있는 사이트 — 비활성", location.hostname);
+        return;
+    }
     WT.watch(["pressFastForwardEnabled"], (c) => {
         if (c.pressFastForwardEnabled) apply(c.pressFastForwardEnabled.newValue ?? false);
     });

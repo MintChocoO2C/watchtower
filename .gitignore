@@ -9,3 +9,6 @@ xcuserdata/
 *.xcuserstate
 DerivedData/
 build/
+
+# 개인 서명 설정 (팀 ID) — 공개 저장소에 올리지 않는다
+Config/Local.xcconfig

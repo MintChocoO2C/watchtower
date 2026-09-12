@@ -12,7 +12,7 @@ Watchtower bundles small quality-of-life features for watching videos on Safari.
 - **YouTube Miniplayer** — Click the YouTube logo on a `/watch` page to switch to the miniplayer; click the miniplayer again to return to the full player.
 - **Hide YouTube Shorts** — Removes the Shorts section from the home feed and the Shorts entry from the sidebar.
 - **Video Frame Capture** — Right-click any `<video>` element to copy or download the current frame as a PNG.
-- **Press to Fast-Forward** — Press and hold on a video to play at 2× speed; release to restore the original speed. (Works on any `<video>` — Chzzk VOD, YouTube, etc.)
+- **Press to Fast-Forward** — Press and hold on a video to play at 2× speed; release to restore the original speed. (Works on any `<video>`, e.g. Chzzk VOD. YouTube is excluded since it has this built in.)
 
 ## Installation
 
@@ -21,9 +21,12 @@ Build from source (no App Store release yet).
 **Requirements**: macOS 10.14+, Xcode 15+
 
 1. `git clone https://github.com/MintChocoO2C/watchtower.git`
-2. Open `watchtower.xcodeproj` in Xcode
-3. Build and run (⌘R) — this launches the host app once
-4. In Safari → Settings → Extensions → enable **Watchtower**
+2. (Optional) Copy `Config/Local.xcconfig.example` to `Config/Local.xcconfig` and fill in your Team ID — this file is git-ignored. If you skip it, pick a team under Signing & Capabilities in Xcode.
+3. Open `watchtower.xcodeproj` in Xcode
+4. Build and run (⌘R) — this launches the host app once
+5. In Safari → Settings → Extensions → enable **Watchtower**
+
+macOS only (iOS is not supported).
 
 If macOS blocks the unsigned extension, see Apple's docs on [running unsigned Safari Web Extensions](https://developer.apple.com/documentation/safariservices/safari_web_extensions/running_your_safari_web_extension).
 
@@ -33,7 +36,7 @@ Click the toolbar icon to open the popup. Each feature has its own toggle.
 
 ### Press to Fast-Forward
 
-Toggle **Press to Fast-Forward** ON in the popup. Press and **hold** the left mouse button on a video to play at 2× speed; release to restore the original speed. Fast-forward only starts after a short hold, so it doesn't conflict with a quick click (play/pause) or a timeline drag (seek).
+Toggle **Press to Fast-Forward** ON in the popup. Press and **hold** the left mouse button on a video to play at 2× speed; release to restore the original speed. Fast-forward only starts after a short hold, so it doesn't conflict with a quick click (play/pause) or a timeline drag (seek), and it never triggers on menus, buttons, or the progress bar overlaid on the video. YouTube has the same feature built into its player (hold to play at 2×), so the extension stays out of the way there.
 
 ## Tech Stack
 

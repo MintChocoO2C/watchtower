@@ -5,20 +5,14 @@
 //  Created by 박민호 on 3/29/26.
 //
 
-import WebKit
-
-#if os(iOS)
-import UIKit
-typealias PlatformViewController = UIViewController
-#elseif os(macOS)
 import Cocoa
 import SafariServices
-typealias PlatformViewController = NSViewController
-#endif
+import WebKit
 
 let extensionBundleIdentifier = "com.coffeeanniversary.watchtower.Extension"
 
-class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMessageHandler {
+// 호스트 앱 창: 확장 활성 상태를 보여주고 Safari 확장 설정을 여는 버튼만 제공한다. (macOS 전용)
+class ViewController: NSViewController, WKNavigationDelegate, WKScriptMessageHandler {
 
     @IBOutlet var webView: WKWebView!
 
@@ -26,21 +20,12 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
         super.viewDidLoad()
 
         self.webView.navigationDelegate = self
-
-#if os(iOS)
-        self.webView.scrollView.isScrollEnabled = false
-#endif
-
         self.webView.configuration.userContentController.add(self, name: "controller")
-
         self.webView.loadFileURL(Bundle.main.url(forResource: "Main", withExtension: "html")!, allowingReadAccessTo: Bundle.main.resourceURL!)
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-#if os(iOS)
-        webView.evaluateJavaScript("show('ios')")
-#elseif os(macOS)
-        webView.evaluateJavaScript("show('mac')")
+        webView.evaluateJavaScript("show()")
 
         SFSafariExtensionManager.getStateOfSafariExtension(withIdentifier: extensionBundleIdentifier) { (state, error) in
             guard let state = state, error == nil else {
@@ -50,17 +35,15 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
 
             DispatchQueue.main.async {
                 if #available(macOS 13, *) {
-                    webView.evaluateJavaScript("show('mac', \(state.isEnabled), true)")
+                    webView.evaluateJavaScript("show(\(state.isEnabled), true)")
                 } else {
-                    webView.evaluateJavaScript("show('mac', \(state.isEnabled), false)")
+                    webView.evaluateJavaScript("show(\(state.isEnabled), false)")
                 }
             }
         }
-#endif
     }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-#if os(macOS)
         if (message.body as! String != "open-preferences") {
             return
         }
@@ -75,7 +58,6 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
                 NSApp.terminate(self)
             }
         }
-#endif
     }
 
 }

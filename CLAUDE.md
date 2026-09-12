@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트 개요
 
-Watchtower는 Xcode로 iOS + macOS 앱으로 패키징되는 **Safari 웹 확장**(Manifest V3)이다. 영상 시청 편의 기능(자동 PiP, 유튜브 미니플레이어, Shorts 숨김, 동영상 프레임 캡처, 눌러서 빨리감기)을 제공한다. 실제 개발은 대부분 `Shared (Extension)/Resources/` 아래 JavaScript에서 이루어지며, Swift 호스트 앱은 거의 Apple 템플릿 그대로다.
+Watchtower는 Xcode로 macOS 앱으로 패키징되는 (macOS 전용, iOS 미지원) **Safari 웹 확장**(Manifest V3)이다. 영상 시청 편의 기능(자동 PiP, 유튜브 미니플레이어, Shorts 숨김, 동영상 프레임 캡처, 눌러서 빨리감기)을 제공한다. 실제 개발은 대부분 `Shared (Extension)/Resources/` 아래 JavaScript에서 이루어지며, Swift 호스트 앱은 거의 Apple 템플릿 그대로다.
 
 ## 언어 정책 (한글 우선)
 
@@ -21,7 +21,10 @@ CLI 빌드·테스트·린트 설정은 없다. Xcode 프로젝트로 다룬다.
 
 - `watchtower.xcodeproj`를 Xcode에서 열고 빌드 & 실행(⌘R)하면 호스트 앱이 한 번 뜬다. 이후 Safari → 설정 → 확장 프로그램에서 **Watchtower**를 활성화한다.
 - 확장 리소스(JS/HTML/CSS)를 수정한 뒤에는 Xcode에서 다시 빌드하고 Safari에서 페이지를 새로고침해야 변경이 반영된다.
-- 요구 사항: macOS 10.14+, Xcode 15+.
+- 요구 사항: macOS 10.14+, Xcode 15+. 타깃은 `watchtower (macOS)` / `watchtower Extension (macOS)` 둘뿐이다.
+- **서명 팀 ID는 저장소에 넣지 않는다.** 프로젝트 빌드 설정이 `Config/Base.xcconfig`를 참조하고, 그 파일이 `Config/Local.xcconfig`(git 무시)를 `#include?`로 선택 포함한다. `DEVELOPMENT_TEAM`은 Local.xcconfig에만 둔다. pbxproj에 `DEVELOPMENT_TEAM`이 생기면 커밋하지 말고 되돌릴 것.
+- CLI 빌드: `xcodebuild -project watchtower.xcodeproj -scheme "watchtower (macOS)" -configuration Debug build`. 결과물이 DerivedData에 등록되어 Safari에 확장이 두 개로 보일 수 있으니, 배포 위치(`/Applications/watchtower.app`)로 복사한 뒤 DerivedData 쪽은 `lsregister -u`로 등록 해제한다.
+- 버전은 `manifest.json`의 `version`과 pbxproj의 `MARKETING_VERSION`을 함께 올린다.
 
 ## 아키텍처: 3개의 JS 실행 컨텍스트
 
@@ -46,7 +49,8 @@ background에 위임하는 공용 서비스를 추가할 때는 메시지 이름
 ### Safari 특유의 패턴 (함부로 "고치지" 말 것)
 
 - **storage 변경은 background를 거쳐 relay된다.** Safari에서는 content script의 `storage.onChanged`가 신뢰성이 없어, `background.js`가 `storage.onChanged`를 듣고 활성 탭 content script로 `storageChanged` 메시지를 전달한다. content/page 스크립트에서 `storage.onChanged`에 직접 의존하지 말 것.
-- **프레임 캡처는 `background.js`의 컨텍스트 메뉴 핸들러에서 `scripting.executeScript` + `world: "MAIN"`으로 실행한다.** content script를 거치지 않는다. 이렇게 해야 클립보드 접근에 필요한 사용자 제스처가 유지되고, 간헐적인 `sendMessage` 실패를 피할 수 있다.
+- **프레임 캡처는 `background.js`의 컨텍스트 메뉴 핸들러에서 `scripting.executeScript` + `world: "MAIN"`으로 실행한다.** content script를 거치지 않는다. 이렇게 해야 클립보드 접근에 필요한 사용자 제스처가 유지되고, 간헐적인 `sendMessage` 실패를 피할 수 있다. 안내 문구는 `page-script.js`의 `_wtFrameMsg(key)` 한 곳에서 관리하고 복사·다운로드 경로가 키로 참조한다.
+- **눌러서 빨리감기는 플랫폼에 같은 기능이 있으면 개입하지 않는다.** `speed.js`의 `NATIVE_HOSTS`(현재 YouTube)에서는 비활성이다. 새 사이트가 자체 길게-누르기 배속을 제공하면 여기에 추가한다.
 
 ## 컨벤션
 

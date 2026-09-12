@@ -110,8 +110,7 @@ browser.runtime.onMessage.addListener((request) => {
         const playing = videos.filter(v => !v.paused && !v.ended);
         return Promise.resolve({
             videoCount: videos.length,
-            playingCount: playing.length,
-            pipActive: !!document.pictureInPictureElement
+            playingCount: playing.length
         });
     }
 });

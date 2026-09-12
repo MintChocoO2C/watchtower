@@ -212,6 +212,20 @@ document.addEventListener("contextmenu", (e) => {
     }
 }, true);
 
+// 프레임 캡처 안내 문구 (한/영) — 복사 경로(background.js executeScript)와
+// 다운로드 경로(아래)가 모두 이 함수를 쓴다. 문구는 여기 한 곳에서만 관리한다.
+function _wtFrameMsg(key) {
+    const ko = navigator.language?.startsWith("ko");
+    const table = {
+        copied:   ko ? "클립보드에 복사됐습니다"        : "Copied to clipboard",
+        copyFail: ko ? "클립보드 복사에 실패했습니다"   : "Clipboard copy failed",
+        saved:    ko ? "프레임이 저장되었습니다"        : "Frame saved",
+        blocked:  ko ? "보안 정책으로 캡처가 제한됩니다" : "Capture blocked by security policy",
+        failed:   ko ? "캡처에 실패했습니다"            : "Capture failed"
+    };
+    return table[key] ?? "";
+}
+
 // 토스트 알림
 function _wtShowFrameToast(message, isError = false) {
     document.getElementById("wt-frame-toast")?.remove();
@@ -271,7 +285,6 @@ document.addEventListener("watchtower-download-frame", () => {
     log("download 이벤트 수신, video:", video ? "found" : "null");
     if (!video) return;
 
-    const ko = navigator.language?.startsWith("ko");
     _wtCaptureVideoFrame(video, (blob) => {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -281,12 +294,9 @@ document.addEventListener("watchtower-download-frame", () => {
         a.click();
         document.body.removeChild(a);
         setTimeout(() => URL.revokeObjectURL(url), 3000);
-        _wtShowFrameToast(ko ? "프레임이 저장되었습니다" : "Frame saved");
+        _wtShowFrameToast(_wtFrameMsg("saved"));
     }, (e) => {
-        const msg = e?.name === "SecurityError"
-            ? (ko ? "보안 정책으로 캡처가 제한됩니다" : "Capture blocked by security policy")
-            : (ko ? "캡처에 실패했습니다" : "Capture failed");
-        _wtShowFrameToast(msg, true);
+        _wtShowFrameToast(_wtFrameMsg(e?.name === "SecurityError" ? "blocked" : "failed"), true);
     });
 });
 
