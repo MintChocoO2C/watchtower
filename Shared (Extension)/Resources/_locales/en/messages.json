@@ -112,5 +112,29 @@
     },
     "roomLoginNeeded": {
         "message": "Sign in to Chzzk to see your follows"
+    },
+    "roomLayout": {
+        "message": "Layout"
+    },
+    "roomColsAuto": {
+        "message": "Auto"
+    },
+    "roomFit": {
+        "message": "Fit to screen"
+    },
+    "roomDragHint": {
+        "message": "Drag onto another stream to swap places"
+    },
+    "roomPlaybackFailed": {
+        "message": "Playback failed"
+    },
+    "roomRetry": {
+        "message": "Retry"
+    },
+    "roomRetrying": {
+        "message": "Retrying automatically in a moment"
+    },
+    "roomRetryGiveUp": {
+        "message": "Stopped auto-retrying. Press the button to try again"
     }
 }

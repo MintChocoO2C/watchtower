@@ -6,7 +6,9 @@
 // 추적 방지(ITP)가 쿠키를 막아 로그인이 끊긴다. 같은 출처면 쿠키가 유지되고
 // 부모에서 iframe 문서(플레이어)를 직접 제어할 수 있다. (2026-09-13 STP로 검증)
 //
-// 제약: 자동 재생은 음소거에서만 된다. 소리는 사용자가 타일을 클릭할 때만 켠다.
+// 제약: 자동 재생은 음소거에서만 된다. 소리는 사용자 클릭(우리 버튼 또는 플레이어 자체 버튼)으로 켠다.
+//       소리는 여러 채널에서 동시에 켜질 수 있다. 상태의 원천은 각 iframe 의 video.muted 이고,
+//       우리는 volumechange 로 그것을 따라간다(플레이어에서 직접 음소거를 풀어도 반영).
 
 (() => {
     "use strict";
@@ -48,11 +50,19 @@
 
     // --- 상태 ---
     const state = {
-        channels: [],   // [{ id, name, image }]
-        sound: null,    // 소리가 켜진 channelId
+        channels: [],   // [{ id, name, image }]  — 배열 순서가 곧 격자 순서
+        sounds: new Set(), // 소리가 켜진 channelId 들 (여러 개 가능)
         status: {},     // channelId -> { open, title, viewers }
+        errors: {},     // channelId -> { count, last }  재생 실패 자동 재시도 기록
+        cols: "auto",   // "auto" | 1..4
+        fit: false,     // true면 스크롤 없이 모든 타일이 한 화면에 들어오도록 크기를 줄인다
     };
     const tiles = new Map();  // channelId -> { root, iframe, styled }
+    const COL_CHOICES = ["auto", 1, 2, 3, 4];
+    const PLAYBACK_CHECK_MS = 5_000;   // 재생 실패 감시 주기
+    const RETRY_DELAY_MS = 4_000;      // 실패 감지 후 자동 재시도까지 대기
+    const RETRY_MAX = 3;               // 이 횟수를 넘으면 자동 재시도를 멈추고 수동 버튼만 남긴다
+    const RETRY_WINDOW_MS = 10 * 60_000;
 
     const el = (tag, attrs = {}, children = []) => {
         const n = document.createElement(tag);
@@ -82,6 +92,7 @@
             el("span", { class: "wt-title", text: t("roomTitle") }),
             el("span", { class: "wt-count", id: "wt-count" }),
             el("span", { class: "wt-sp" }),
+            buildLayoutControls(),
             el("button", { class: "wt-btn wt-primary", type: "button", onclick: openFollowPanel, text: "＋ " + t("roomAddFollow") }),
             el("button", { class: "wt-btn", type: "button", onclick: addByUrl, text: t("roomAddUrl") }),
             el("button", { class: "wt-btn wt-icon", type: "button", title: t("roomSettings"), "aria-label": t("roomSettings"), onclick: toggleSettings }, [gearIcon()]),
@@ -95,6 +106,28 @@
         const drawer = buildSettingsDrawer();
         const panel = el("div", { class: "wt-panel", id: "wt-follow", hidden: "" });
         body.append(bar, el("div", { class: "wt-body" }, [scroll, chat]), drawer, panel);
+    }
+
+    // 열 수(자동/1~4) + 화면에 맞춤 토글
+    function buildLayoutControls() {
+        const seg = el("div", { class: "wt-seg", role: "group", "aria-label": t("roomLayout") });
+        for (const c of COL_CHOICES) {
+            seg.appendChild(el("button", { class: "wt-seg-btn", type: "button", "data-cols": String(c),
+                text: c === "auto" ? t("roomColsAuto") : String(c),
+                onclick: () => { state.cols = c; saveState(); render(); } }));
+        }
+        const fit = el("button", { class: "wt-btn wt-fit", type: "button", id: "wt-fit", "aria-pressed": "false",
+            text: t("roomFit"), onclick: () => { state.fit = !state.fit; saveState(); render(); } });
+        return el("div", { class: "wt-layout" }, [seg, fit]);
+    }
+
+    function speakerIcon(on) {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "14"); svg.setAttribute("height", "14");
+        svg.innerHTML = on
+            ? '<path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor"/><path d="M10.5 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6 6 0 0 1 0 9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/>'
+            : '<path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor"/><path d="M10.5 6l4 4M14.5 6l-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>';
+        return svg;
     }
 
     function gearIcon() {
@@ -148,35 +181,104 @@
 
     // --- 채널 목록 저장/복원 ---
     async function loadState() {
-        const r = await WT.load(["roomChannels", "roomSound"]);
+        const r = await WT.load(["roomChannels", "roomSound", "roomLayout"]);
         state.channels = Array.isArray(r.roomChannels) ? r.roomChannels.slice(0, MAX_CHANNELS) : [];
-        state.sound = r.roomSound ?? null;
+        // roomSound: 예전(단일 id 문자열)과 현재(배열) 둘 다 받아들인다
+        const snd = r.roomSound;
+        state.sounds = new Set(Array.isArray(snd) ? snd : (typeof snd === "string" && snd ? [snd] : []));
+        const lay = r.roomLayout || {};
+        state.cols = COL_CHOICES.includes(lay.cols) ? lay.cols : "auto";
+        state.fit = lay.fit === true;
     }
     function saveState() {
-        browser.storage.local.set({ roomChannels: state.channels, roomSound: state.sound }).catch(() => {});
+        browser.storage.local.set({
+            roomChannels: state.channels, roomSound: [...state.sounds],
+            roomLayout: { cols: state.cols, fit: state.fit },
+        }).catch(() => {});
     }
 
     // --- 격자 렌더 ---
-    function gridColumns(n) { return Math.min(4, Math.ceil(Math.sqrt(Math.max(1, n)))); }
+    function autoColumns(n) { return Math.min(4, Math.ceil(Math.sqrt(Math.max(1, n)))); }
+    function gridColumns(n) { return state.cols === "auto" ? autoColumns(n) : Math.min(state.cols, Math.max(1, n)); }
 
+    // 타일은 한 번 만들면 DOM 위치를 옮기지 않는다 — iframe 을 DOM 에서 떼었다 붙이면 재로드되기 때문.
+    // 순서는 CSS order 로만 표현한다. (추가/삭제/스왑 모두 기존 타일을 건드리지 않는다)
     function render() {
         const grid = document.getElementById("wt-grid");
         const n = state.channels.length;
-        grid.style.setProperty("--cols", gridColumns(n));
+        const cols = gridColumns(n);
+        const rows = Math.max(1, Math.ceil(n / cols));
+        grid.style.setProperty("--cols", cols);
+        grid.style.setProperty("--rows", rows);
+        document.body.classList.add("wt-room");   // 외부 스크립트가 body class 를 덮어써도 우리 스타일이 유지되게
+        document.body.classList.toggle("fit", state.fit);
         document.getElementById("wt-empty").hidden = n > 0;
-        document.getElementById("wt-count").textContent = n ? `${n} · ${gridColumns(n)}${t("roomCols")}` : "";
+        document.getElementById("wt-count").textContent = n ? `${n} · ${cols}${t("roomCols")}` : "";
+        for (const b of document.querySelectorAll(".wt-seg-btn")) {
+            b.setAttribute("aria-pressed", String(b.dataset.cols === String(state.cols)));
+        }
+        document.getElementById("wt-fit").setAttribute("aria-pressed", String(state.fit));
 
-        // 없어진 채널 타일 제거
         for (const [id, tile] of tiles) {
             if (!state.channels.some(c => c.id === id)) { tile.root.remove(); tiles.delete(id); }
         }
-        // 순서대로 배치 (있으면 재사용 — iframe 재로드 방지)
-        for (const ch of state.channels) {
+        state.channels.forEach((ch, i) => {
             let tile = tiles.get(ch.id);
-            if (!tile) { tile = createTile(ch); tiles.set(ch.id, tile); }
-            grid.appendChild(tile.root);
+            if (!tile) { tile = createTile(ch); tiles.set(ch.id, tile); grid.appendChild(tile.root); }
+            tile.root.style.order = i;
             updateTile(ch.id);
-        }
+        });
+        fitTiles();
+    }
+
+    // 화면에 맞춤: 모든 줄이 스크롤 없이 들어오도록 타일 폭을 계산한다 (16:9 유지)
+    function fitTiles() {
+        const grid = document.getElementById("wt-grid");
+        if (!state.fit || !state.channels.length) { grid.style.removeProperty("--tile-w"); return; }
+        const scroll = grid.parentElement;
+        const gap = 6, pad = 8;
+        const cols = gridColumns(state.channels.length);
+        const rows = Math.ceil(state.channels.length / cols);
+        const w = scroll.clientWidth - pad * 2, h = scroll.clientHeight - pad * 2;
+        const byW = (w - gap * (cols - 1)) / cols;
+        const byH = ((h - gap * (rows - 1)) / rows) * 16 / 9;
+        grid.style.setProperty("--tile-w", Math.max(120, Math.floor(Math.min(byW, byH))) + "px");
+    }
+
+    // --- 스왑: 타일 상단 바를 잡아 다른 타일 위에 놓으면 자리를 바꾼다 ---
+    let dragId = null;
+    function onDragStart(id, e) {
+        dragId = id;
+        e.dataTransfer.effectAllowed = "move";
+        try { e.dataTransfer.setData("text/plain", id); } catch {}
+        document.body.classList.add("dragging");   // iframe 이 드래그 이벤트를 삼키지 않도록 pointer-events 차단
+        tiles.get(id)?.root.classList.add("drag-src");
+    }
+    function onDragEnd() {
+        document.body.classList.remove("dragging");
+        for (const t of tiles.values()) t.root.classList.remove("drag-src", "drag-over");
+        dragId = null;
+    }
+    function onDragOver(id, e) {
+        if (!dragId || dragId === id) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        tiles.get(id)?.root.classList.add("drag-over");
+    }
+    function onDragLeave(id) { tiles.get(id)?.root.classList.remove("drag-over"); }
+    function onDrop(id, e) {
+        e.preventDefault();
+        if (!dragId || dragId === id) { onDragEnd(); return; }
+        swapChannels(dragId, id);
+        onDragEnd();
+    }
+    function swapChannels(a, b) {
+        const i = state.channels.findIndex(c => c.id === a);
+        const j = state.channels.findIndex(c => c.id === b);
+        if (i < 0 || j < 0) return;
+        [state.channels[i], state.channels[j]] = [state.channels[j], state.channels[i]];
+        saveState(); render();
+        WT.log("room", "스왑", a.slice(0, 6), "<->", b.slice(0, 6));
     }
 
     function createTile(ch) {
@@ -185,9 +287,11 @@
             allow: "autoplay; fullscreen",
             title: ch.name || ch.id,
         });
-        const root = el("div", { class: "wt-tile", "data-id": ch.id }, [
+        const root = el("div", { class: "wt-tile", "data-id": ch.id,
+            ondragover: (e) => onDragOver(ch.id, e), ondragleave: () => onDragLeave(ch.id), ondrop: (e) => onDrop(ch.id, e) }, [
             iframe,
-            el("div", { class: "wt-tile-top" }, [
+            el("div", { class: "wt-tile-top", draggable: "true", title: t("roomDragHint"),
+                ondragstart: (e) => onDragStart(ch.id, e), ondragend: onDragEnd }, [
                 el("span", { class: "wt-live", text: "LIVE" }),
                 el("span", { class: "wt-name", text: ch.name || ch.id }),
                 el("span", { class: "wt-viewers" }),
@@ -195,10 +299,13 @@
                 el("button", { class: "wt-btn wt-icon wt-remove", type: "button", title: t("roomRemove"), "aria-label": t("roomRemove"), text: "×",
                     onclick: (e) => { e.stopPropagation(); removeChannel(ch.id); } }),
             ]),
-            el("button", { class: "wt-tile-sound", type: "button", onclick: () => setSound(ch.id) }, [
-                el("span", { class: "wt-sound-label" }),
-            ]),
+            el("button", { class: "wt-tile-sound", type: "button", onclick: () => toggleSound(ch.id) }),
             el("div", { class: "wt-offline", text: t("roomOffline") }),
+            el("div", { class: "wt-error" }, [
+                el("span", { class: "wt-error-text", text: t("roomPlaybackFailed") }),
+                el("span", { class: "wt-error-sub" }),
+                el("button", { class: "wt-btn wt-retry", type: "button", text: t("roomRetry"), onclick: () => retryTile(ch.id, true) }),
+            ]),
         ]);
         const tile = { root, iframe, styled: false };
         iframe.addEventListener("load", () => onTileLoad(ch.id));
@@ -216,9 +323,25 @@
         style.textContent = PLAYER_ONLY_CSS;
         (doc.head || doc.documentElement).appendChild(style);
         tile.styled = true;
-        tile.root.classList.add("ready");
+        tile.root.classList.add("ready", "playing");
+        tile.root.classList.remove("error");
+        // 플레이어 자체 버튼으로 음소거를 풀거나 걸어도 우리 상태가 따라가도록 (capture: video 가 바뀌어도 잡힌다)
+        doc.addEventListener("volumechange", (e) => {
+            if (e.target?.tagName !== "VIDEO") return;
+            syncSoundFromVideo(id, e.target);
+        }, true);
         applySound(id);
         WT.log("room", "타일 준비", id);
+    }
+
+    // video.muted 가 곧 진실. 우리 상태와 다르면 맞추고 저장한다.
+    function syncSoundFromVideo(id, v) {
+        const on = !v.muted;
+        if (state.sounds.has(id) === on) return;
+        if (on) state.sounds.add(id); else state.sounds.delete(id);
+        saveState();
+        updateTile(id);
+        WT.log("room", "플레이어에서 소리 변경", id.slice(0, 6), on);
     }
 
     function tileVideo(id) {
@@ -226,18 +349,25 @@
         try { return tile?.iframe.contentDocument?.querySelector("video") || null; } catch { return null; }
     }
 
-    // 소리는 한 채널만. 클릭(사용자 제스처) 안에서 muted를 풀어야 Safari가 재생을 허용한다.
-    function setSound(id) {
-        state.sound = state.sound === id ? null : id;
+    // 소리 토글 — 여러 채널이 동시에 켜질 수 있다. 클릭(사용자 제스처) 안에서 muted 를 풀어야 Safari 가 허용한다.
+    function toggleSound(id) {
+        if (state.sounds.has(id)) state.sounds.delete(id); else state.sounds.add(id);
         saveState();
-        for (const ch of state.channels) applySound(ch.id);
+        applySound(id);
     }
+    // 저장된 소리 상태를 video 에 적용. 제스처 없이 풀었다가 Safari 가 일시정지시키면 음소거로 되돌린다.
     function applySound(id) {
         const v = tileVideo(id);
-        const on = state.sound === id;
+        const on = state.sounds.has(id);
         if (v) {
             v.muted = !on;
-            if (on && v.paused) v.play().catch(() => {});
+            if (v.paused) v.play().catch(() => {});
+            if (on) setTimeout(() => {
+                if (v.paused && state.sounds.has(id)) {
+                    WT.log("room", "제스처 없이 소리 켜기 거부됨 → 음소거로 복귀", id.slice(0, 6));
+                    v.muted = true; v.play().catch(() => {});
+                }
+            }, 800);
         }
         updateTile(id);
     }
@@ -246,10 +376,16 @@
         const tile = tiles.get(id);
         if (!tile) return;
         const st = state.status[id];
-        const on = state.sound === id;
+        const on = state.sounds.has(id);
         tile.root.classList.toggle("sound", on);
         tile.root.classList.toggle("offline", st ? !st.open : false);
-        tile.root.querySelector(".wt-sound-label").textContent = on ? "🔊 " + t("roomSound") : "🔇 " + t("roomMuted");
+        const btn = tile.root.querySelector(".wt-tile-sound");
+        const label = on ? t("roomSound") : t("roomMuted");
+        if (btn.dataset.on !== String(on)) {
+            btn.dataset.on = String(on);
+            btn.replaceChildren(speakerIcon(on));
+            btn.title = label; btn.setAttribute("aria-label", label);
+        }
         tile.root.querySelector(".wt-viewers").textContent = st?.open && st.viewers != null ? st.viewers.toLocaleString() : "";
         tile.root.querySelector(".wt-name").title = st?.title || "";
     }
@@ -264,7 +400,7 @@
     }
     function removeChannel(id) {
         state.channels = state.channels.filter(c => c.id !== id);
-        if (state.sound === id) state.sound = null;
+        state.sounds.delete(id);
         saveState(); render();
     }
 
@@ -353,6 +489,61 @@
         return arr;
     }
 
+    // --- 재생 실패 감시 ---
+    // 치지직 플레이어가 "미디어 재생이 실패했습니다" 를 띄우거나 video.error 가 생기면
+    // 우리 오버레이를 덮고 자동으로 다시 불러온다(10분에 3회까지). 그 뒤로는 수동 버튼만.
+    function detectPlaybackError(id) {
+        const tile = tiles.get(id);
+        const doc = tile?.iframe.contentDocument;
+        if (!doc || !tile.styled) return false;
+        const v = doc.querySelector("video");
+        if (v?.error) return true;
+        const layout = doc.getElementById("live_player_layout");
+        const text = layout?.innerText || "";
+        return /재생이 실패|재생할 수 없|playback failed|cannot be played/i.test(text);
+    }
+    function checkPlayback() {
+        for (const ch of state.channels) {
+            const id = ch.id;
+            const tile = tiles.get(id);
+            if (!tile || tile.root.classList.contains("offline")) continue;
+            const failed = detectPlaybackError(id);
+            if (!failed) { if (tile.root.classList.contains("error")) tile.root.classList.remove("error"); continue; }
+            if (tile.root.classList.contains("error")) continue;   // 이미 처리 중
+            tile.root.classList.add("error");
+            const rec = state.errors[id] || { count: 0, last: 0 };
+            if (Date.now() - rec.last > RETRY_WINDOW_MS) rec.count = 0;
+            state.errors[id] = rec;
+            const sub = tile.root.querySelector(".wt-error-sub");
+            if (rec.count < RETRY_MAX) {
+                sub.textContent = t("roomRetrying");
+                setTimeout(() => { if (tile.root.classList.contains("error")) retryTile(id, false); }, RETRY_DELAY_MS);
+            } else {
+                sub.textContent = t("roomRetryGiveUp");
+            }
+            WT.log("room", "재생 실패 감지", id.slice(0, 6), rec);
+        }
+    }
+    function retryTile(id, manual) {
+        const tile = tiles.get(id);
+        if (!tile) return;
+        const rec = state.errors[id] || { count: 0, last: 0 };
+        if (manual) rec.count = 0; else rec.count += 1;
+        rec.last = Date.now();
+        state.errors[id] = rec;
+        tile.styled = false;
+        tile.root.classList.remove("ready", "error");
+        tile.root.querySelector(".wt-error-sub").textContent = "";
+        reloadTile(id);
+        WT.log("room", "다시 시도", id.slice(0, 6), manual ? "수동" : "자동", rec.count);
+    }
+    function reloadTile(id) {
+        const tile = tiles.get(id);
+        if (!tile) return;
+        try { tile.iframe.contentWindow.location.reload(); }
+        catch { tile.iframe.src = tile.iframe.src; }
+    }
+
     // --- 방송 상태 폴링 (공개 API, 로그인 불필요) ---
     async function refreshStatus(ids = state.channels.map(c => c.id)) {
         await Promise.all(ids.map(async (id) => {
@@ -371,7 +562,7 @@
                 // 종료 → 시작으로 바뀌면 iframe을 다시 불러 재생시킨다
                 if (wasOpen === false && state.status[id].open) {
                     const tile = tiles.get(id);
-                    if (tile) { tile.styled = false; tile.root.classList.remove("ready"); tile.iframe.src = tile.iframe.src; }
+                    if (tile) { tile.styled = false; tile.root.classList.remove("ready"); reloadTile(id); }
                 }
             } catch (e) {
                 WT.log("room", "상태 조회 실패", id, e?.message);
@@ -387,6 +578,8 @@
         render();
         refreshStatus();
         setInterval(() => refreshStatus(), STATUS_INTERVAL_MS);
+        setInterval(checkPlayback, PLAYBACK_CHECK_MS);
+        window.addEventListener("resize", fitTiles);
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape") {
                 document.getElementById("wt-drawer").classList.remove("open");
