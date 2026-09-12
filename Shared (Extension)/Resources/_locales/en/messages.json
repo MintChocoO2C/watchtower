@@ -95,12 +95,6 @@
     "roomRemove": {
         "message": "Remove"
     },
-    "roomSound": {
-        "message": "Sound"
-    },
-    "roomMuted": {
-        "message": "Muted"
-    },
     "roomOffline": {
         "message": "Offline"
     },
@@ -139,5 +133,14 @@
     },
     "roomOfflineShelf": {
         "message": "Offline — returns automatically when live again"
+    },
+    "roomFocus": {
+        "message": "View only this stream (double-click)"
+    },
+    "roomBackToGrid": {
+        "message": "Grid"
+    },
+    "roomFocusHint": {
+        "message": "Double-click or Esc to go back · ←/→ next stream · number keys jump"
     }
 }

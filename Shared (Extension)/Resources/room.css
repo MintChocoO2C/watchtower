@@ -126,16 +126,21 @@
 .wt-viewers { color: #c9ccd2; font-variant-numeric: tabular-nums; }
 .wt-tile-top .wt-btn { background: rgba(0,0,0,.5); border-color: rgba(255,255,255,.2); color: #e9eaed; }
 .wt-remove { width: 22px; height: 20px; font-size: 14px; line-height: 1; }
+.wt-focus-btn { width: 22px; height: 20px; }
 
-/* 소리 버튼: 아이콘만, 타일에 마우스를 올렸을 때만 보인다 */
-.wt-tile-sound {
-    position: absolute; right: 6px; bottom: 6px; z-index: 2;
-    width: 28px; height: 26px; display: grid; place-items: center;
-    background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.15); border-radius: 6px; color: #e9eaed;
-    opacity: 0; transition: opacity .15s ease;
+
+/* 집중 보기: 타일 하나가 격자 영역(.wt-body)을 채운다. 나머지는 자리에 두되 숨긴다 */
+.wt-body { position: relative; }
+.wt-unfocus { display: none; }
+.focus-mode .wt-unfocus { display: inline-flex; }
+.focus-mode .wt-layout { display: none; }
+.focus-mode .wt-tile:not(.focus) { visibility: hidden; }
+.wt-tile.focus {
+    position: absolute; inset: 8px; z-index: 8; aspect-ratio: auto; width: auto; height: auto;
+    border-radius: 6px;
 }
-.wt-tile:hover .wt-tile-sound, .wt-tile-sound:focus-visible { opacity: 1; }
-.wt-tile.sound .wt-tile-sound { background: var(--wt-accent); color: var(--wt-accent-ink); border-color: transparent; }
+.wt-tile.focus .wt-tile-top { cursor: default; }
+.wt-tile.focus .wt-focus-btn { background: var(--wt-accent); color: var(--wt-accent-ink); border-color: transparent; }
 
 /* 드래그(스왑) 중 */
 .dragging .wt-tile iframe { pointer-events: none; }
@@ -147,7 +152,6 @@
     background: rgba(0,0,0,.72); color: #c9ccd2; font-size: 13px;
 }
 .wt-tile.offline .wt-offline { display: grid; }
-.wt-tile.offline .wt-tile-sound { display: none; }
 
 /* 재생 실패 오버레이 (치지직 플레이어의 "미디어 재생이 실패했습니다" 를 덮는다) */
 .wt-error {
@@ -158,7 +162,7 @@
 .wt-error-sub { font-size: 11px; color: #b5bac3; min-height: 14px; }
 .wt-retry { margin-top: 4px; background: var(--wt-accent); color: var(--wt-accent-ink); border-color: transparent; font-weight: 600; }
 .wt-tile.error .wt-error { display: grid; }
-.wt-tile.error .wt-tile-sound { display: none; }
+
 
 /* 종료된 방송 선반 */
 .wt-shelf {

@@ -54,6 +54,8 @@
         sounds: new Set(), // 소리가 켜진 channelId 들 (여러 개 가능)
         status: {},     // channelId -> { open, title, viewers }
         errors: {},     // channelId -> { count, last }  재생 실패 자동 재시도 기록
+        focus: null,    // 집중 보기 중인 channelId (그 타일만 크게, 나머지는 음소거)
+        soundBackup: null, // 집중 보기 들어가기 전 소리 상태 (나올 때 복원)
         cols: "auto",   // "auto" | 1..4
         fit: false,     // true면 스크롤 없이 모든 타일이 한 화면에 들어오도록 크기를 줄인다
     };
@@ -99,6 +101,7 @@
         const bar = el("header", { class: "wt-bar" }, [
             el("span", { class: "wt-title", text: t("roomTitle") }),
             el("span", { class: "wt-count", id: "wt-count" }),
+            el("button", { class: "wt-btn wt-unfocus", type: "button", onclick: exitFocus, text: "← " + t("roomBackToGrid") }),
             el("span", { class: "wt-sp" }),
             buildLayoutControls(),
             el("button", { class: "wt-btn wt-primary", type: "button", onclick: openFollowPanel, text: "＋ " + t("roomAddFollow") }),
@@ -136,15 +139,13 @@
         return el("div", { class: "wt-layout" }, [seg, fit]);
     }
 
-    function speakerIcon(on) {
+
+    function focusIcon() {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "14"); svg.setAttribute("height", "14");
-        svg.innerHTML = on
-            ? '<path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor"/><path d="M10.5 5.5a3.5 3.5 0 0 1 0 5M12.5 3.5a6 6 0 0 1 0 9" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linecap="round"/>'
-            : '<path d="M2 6h2.5L8 3v10L4.5 10H2z" fill="currentColor"/><path d="M10.5 6l4 4M14.5 6l-4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>';
+        svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "13"); svg.setAttribute("height", "13");
+        svg.innerHTML = '<path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
         return svg;
     }
-
     function gearIcon() {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "15"); svg.setAttribute("height", "15");
@@ -217,7 +218,7 @@
     }
     function saveState() {
         browser.storage.local.set({
-            roomChannels: state.channels, roomSound: [...state.sounds],
+            roomChannels: state.channels, roomSound: [...(state.focus !== null && state.soundBackup ? state.soundBackup : state.sounds)],
             roomLayout: { cols: state.cols, fit: state.fit },
         }).catch(() => {});
     }
@@ -242,13 +243,17 @@
         document.body.classList.add("wt-room");   // 외부 스크립트가 body class 를 덮어써도 우리 스타일이 유지되게
         document.body.classList.toggle("fit", state.fit);
         document.getElementById("wt-empty").hidden = state.channels.length > 0;
-        document.getElementById("wt-count").textContent = state.channels.length
-            ? `${n}/${state.channels.length} · ${cols}${t("roomCols")}` : "";
+        const focused = state.focus !== null ? state.channels.find(c => c.id === state.focus) : null;
+        document.getElementById("wt-count").textContent = focused
+            ? `${focused.name || focused.id.slice(0, 8)} — ${t("roomFocusHint")}`
+            : (state.channels.length ? `${n}/${state.channels.length} · ${cols}${t("roomCols")}` : "");
+        document.body.classList.toggle("focus-mode", state.focus !== null);
         for (const b of document.querySelectorAll(".wt-seg-btn")) {
             b.setAttribute("aria-pressed", String(b.dataset.cols === String(state.cols)));
         }
         document.getElementById("wt-fit").setAttribute("aria-pressed", String(state.fit));
 
+        if (state.focus !== null && !online.some(c => c.id === state.focus)) exitFocus();   // 집중 중인 방송이 끝나면 격자로
         // 없어졌거나 종료된 채널의 타일은 내린다 (종료된 방송의 iframe 은 붙들고 있지 않는다)
         for (const [id, tile] of tiles) {
             if (!online.some(c => c.id === id)) { tile.root.remove(); tiles.delete(id); }
@@ -340,15 +345,17 @@
             ondragover: (e) => onDragOver(ch.id, e), ondragleave: () => onDragLeave(ch.id), ondrop: (e) => onDrop(ch.id, e) }, [
             iframe,
             el("div", { class: "wt-tile-top", draggable: "true", title: t("roomDragHint"),
-                ondragstart: (e) => onDragStart(ch.id, e), ondragend: onDragEnd }, [
+                ondragstart: (e) => onDragStart(ch.id, e), ondragend: onDragEnd,
+                onclick: (e) => { if (!e.target.closest("button")) toggleFocus(ch.id); } }, [
                 el("span", { class: "wt-live", text: "LIVE" }),
                 el("span", { class: "wt-name", text: ch.name || ch.id }),
                 el("span", { class: "wt-viewers" }),
                 el("span", { class: "wt-sp" }),
+                el("button", { class: "wt-btn wt-icon wt-focus-btn", type: "button", title: t("roomFocus"), "aria-label": t("roomFocus"),
+                    onclick: (e) => { e.stopPropagation(); toggleFocus(ch.id); } }, [focusIcon()]),
                 el("button", { class: "wt-btn wt-icon wt-remove", type: "button", title: t("roomRemove"), "aria-label": t("roomRemove"), text: "×",
                     onclick: (e) => { e.stopPropagation(); removeChannel(ch.id); } }),
             ]),
-            el("button", { class: "wt-tile-sound", type: "button", onclick: () => toggleSound(ch.id) }),
             el("div", { class: "wt-offline", text: t("roomOffline") }),
             el("div", { class: "wt-error" }, [
                 el("span", { class: "wt-error-text", text: t("roomPlaybackFailed") }),
@@ -379,6 +386,13 @@
             if (e.target?.tagName !== "VIDEO") return;
             syncSoundFromVideo(id, e.target);
         }, true);
+        // 타일 더블클릭 → 집중 보기 토글. 플레이어의 더블클릭(브라우저 전체화면)은 여기서 끊는다.
+        doc.addEventListener("dblclick", (e) => {
+            if (!e.target?.closest?.("#live_player_layout")) return;
+            e.preventDefault(); e.stopImmediatePropagation();
+            toggleFocus(id);
+        }, true);
+        doc.addEventListener("keydown", (e) => { if (e.key === "Escape" && state.focus) { e.preventDefault(); exitFocus(); } }, true);
         applySound(id);
         WT.log("room", "타일 준비", id);
     }
@@ -402,11 +416,6 @@
     }
 
     // 소리 토글 — 여러 채널이 동시에 켜질 수 있다. 클릭(사용자 제스처) 안에서 muted 를 풀어야 Safari 가 허용한다.
-    function toggleSound(id) {
-        if (state.sounds.has(id)) state.sounds.delete(id); else state.sounds.add(id);
-        saveState();
-        applySound(id);
-    }
     // 저장된 소리 의도(state.sounds)를 video 에 적용한다.
     // - 소리를 켜려는 타일: 페이지에 사용자 제스처가 있었을 때만 실제로 푼다(없으면 Safari 가 재생을 멈춘다).
     //   제스처가 없으면 음소거 상태로 두고 의도는 유지 → 첫 클릭 때 다시 적용한다(pending 표시).
@@ -438,6 +447,39 @@
         }
         updateTile(id);
     }
+    // --- 집중 보기: 타일 하나가 격자 영역을 채우고 소리는 그 채널만 ---
+    function toggleFocus(id) { if (state.focus === id) exitFocus(); else enterFocus(id); }
+    function enterFocus(id) {
+        if (!tiles.has(id)) return;
+        if (state.focus === null) state.soundBackup = new Set(state.sounds);   // 처음 들어갈 때만 백업
+        state.focus = id;
+        state.sounds = new Set([id]);
+        document.body.classList.add("focus-mode");
+        for (const ch of state.channels) applySound(ch.id);
+        render();
+        tiles.get(id)?.iframe.contentWindow?.focus();
+        WT.log("room", "집중 보기", id.slice(0, 6));
+    }
+    function exitFocus() {
+        if (state.focus === null) return;
+        state.focus = null;
+        state.sounds = state.soundBackup ? new Set(state.soundBackup) : new Set();
+        state.soundBackup = null;
+        document.body.classList.remove("focus-mode");
+        saveState();
+        for (const ch of state.channels) applySound(ch.id);
+        render();
+        WT.log("room", "격자로 복귀");
+    }
+    // 집중 보기 중 ←/→ 로 이웃 채널로, 숫자 키로 n번째 채널로
+    function focusStep(delta) {
+        const online = onlineChannels();
+        if (!online.length) return;
+        const i = online.findIndex(c => c.id === state.focus);
+        const next = online[((i < 0 ? 0 : i) + delta + online.length) % online.length];
+        if (next) enterFocus(next.id);
+    }
+
     // 첫 사용자 제스처가 생기면 보류된 소리 의도를 적용한다
     function applyPendingSounds() {
         for (const id of state.sounds) {
@@ -452,28 +494,27 @@
         const on = state.sounds.has(id);
         tile.root.classList.toggle("sound", on);
         tile.root.classList.toggle("offline", st ? !st.open : false);
-        const btn = tile.root.querySelector(".wt-tile-sound");
-        const label = on ? t("roomSound") : t("roomMuted");
-        if (btn.dataset.on !== String(on)) {
-            btn.dataset.on = String(on);
-            btn.replaceChildren(speakerIcon(on));
-            btn.title = label; btn.setAttribute("aria-label", label);
-        }
+        tile.root.classList.toggle("focus", state.focus === id);
         tile.root.querySelector(".wt-viewers").textContent = st?.open && st.viewers != null ? st.viewers.toLocaleString() : "";
         tile.root.querySelector(".wt-name").title = st?.title || "";
     }
 
     // --- 채널 추가/제거 ---
-    function addChannel(ch) {
+    async function addChannel(ch) {
         if (!ch?.id) return;
         if (state.channels.some(c => c.id === ch.id)) return;
         if (state.channels.length >= MAX_CHANNELS) { alert(t("roomMax")); return; }
         state.channels.push({ id: ch.id, name: ch.name || "", image: ch.image || "" });
-        saveState(); render(); refreshStatus([ch.id]);
+        saveState();
+        // 켜짐/종료를 알고 나서 그린다 — 종료된 방송이 격자에 잠깐 떴다가 선반으로 밀려나지 않게
+        if (typeof ch.open === "boolean") state.status[ch.id] = { open: ch.open, title: ch.title || "" };
+        else await refreshStatus([ch.id], { render: false });
+        render();
     }
     function removeChannel(id) {
+        if (state.focus === id) exitFocus();
         state.channels = state.channels.filter(c => c.id !== id);
-        state.sounds.delete(id);
+        state.sounds.delete(id); state.soundBackup?.delete(id);
         saveState(); render();
     }
 
@@ -620,7 +661,7 @@
     }
 
     // --- 방송 상태 폴링 (공개 API, 로그인 불필요) ---
-    async function refreshStatus(ids = state.channels.map(c => c.id)) {
+    async function refreshStatus(ids = state.channels.map(c => c.id), opts = {}) {
         let changed = false;
         await Promise.all(ids.map(async (id) => {
             try {
@@ -641,7 +682,7 @@
             }
             updateTile(id);
         }));
-        if (changed) render();   // 종료 → 선반으로, 재개 → 원래 자리로
+        if (changed && opts.render !== false) render();   // 종료 → 선반으로, 재개 → 원래 자리로
     }
 
     // --- 시작 ---
@@ -654,7 +695,15 @@
         setInterval(checkPlayback, PLAYBACK_CHECK_MS);
         window.addEventListener("resize", fitTiles);
         document.addEventListener("pointerdown", applyPendingSounds, true);
-        document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeOverlays(); });
+        document.addEventListener("keydown", (e) => {
+            if (e.target?.closest?.("input, textarea, [contenteditable]")) return;
+            if (e.key === "Escape") { closeOverlays(); if (state.focus !== null) exitFocus(); return; }
+            if (state.focus !== null && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { e.preventDefault(); focusStep(e.key === "ArrowRight" ? 1 : -1); return; }
+            if (/^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                const ch = onlineChannels()[Number(e.key) - 1];
+                if (ch) toggleFocus(ch.id);
+            }
+        });
         WT.log("room", "상황실 시작", state.channels.length, "채널");
     }
 

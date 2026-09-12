@@ -95,12 +95,6 @@
     "roomRemove": {
         "message": "제거"
     },
-    "roomSound": {
-        "message": "소리"
-    },
-    "roomMuted": {
-        "message": "음소거"
-    },
     "roomOffline": {
         "message": "방송 종료"
     },
@@ -139,5 +133,14 @@
     },
     "roomOfflineShelf": {
         "message": "방송 종료 — 다시 켜지면 자동으로 돌아옵니다"
+    },
+    "roomFocus": {
+        "message": "이 방송만 크게 보기 (더블클릭)"
+    },
+    "roomBackToGrid": {
+        "message": "격자로"
+    },
+    "roomFocusHint": {
+        "message": "더블클릭 또는 Esc로 돌아가기 · ←/→ 다음 방송 · 숫자 키로 바로 가기"
     }
 }
