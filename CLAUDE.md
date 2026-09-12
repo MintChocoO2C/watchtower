@@ -23,7 +23,7 @@ CLI 빌드·테스트·린트 설정은 없다. Xcode 프로젝트로 다룬다.
 - 확장 리소스(JS/HTML/CSS)를 수정한 뒤에는 Xcode에서 다시 빌드하고 Safari에서 페이지를 새로고침해야 변경이 반영된다.
 - 요구 사항: macOS 10.14+, Xcode 15+. 타깃은 `watchtower (macOS)` / `watchtower Extension (macOS)` 둘뿐이다.
 - **서명 팀 ID는 저장소에 넣지 않는다.** 프로젝트 빌드 설정이 `Config/Base.xcconfig`를 참조하고, 그 파일이 `Config/Local.xcconfig`(git 무시)를 `#include?`로 선택 포함한다. `DEVELOPMENT_TEAM`은 Local.xcconfig에만 둔다. pbxproj에 `DEVELOPMENT_TEAM`이 생기면 커밋하지 말고 되돌릴 것.
-- CLI 빌드: `xcodebuild -project watchtower.xcodeproj -scheme "watchtower (macOS)" -configuration Debug build`. 결과물이 DerivedData에 등록되어 Safari에 확장이 두 개로 보일 수 있으니, 배포 위치(`/Applications/watchtower.app`)로 복사한 뒤 DerivedData 쪽은 `lsregister -u`로 등록 해제한다.
+- CLI 빌드: `xcodebuild -project watchtower.xcodeproj -scheme "watchtower (macOS)" -configuration Debug build`. 결과물이 DerivedData에 등록되어 Safari에 확장이 두 개로 보일 수 있으니, 배포 위치(`/Applications/watchtower.app`)로 복사한 뒤 DerivedData 쪽은 `lsregister -u`로 등록 해제한다. 복사만 하면 Safari 확장 목록에서 사라질 수 있으니 `pluginkit -a <appex 경로>`로 확장을 다시 등록하고 호스트 앱을 한 번 실행한다.
 - 버전은 `manifest.json`의 `version`과 pbxproj의 `MARKETING_VERSION`을 함께 올린다.
 
 ## 아키텍처: 3개의 JS 실행 컨텍스트
