@@ -1,0 +1,116 @@
+/* Watchtower — 상황실 (chzzk.naver.com/wt-room 에서 room.js 가 만든 문서에 적용) */
+
+.wt-room, .wt-room * { box-sizing: border-box; }
+.wt-room {
+    margin: 0; height: 100vh; overflow: hidden;
+    background: #0b0c0e; color: #e9eaed;
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "SF Pro Text", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column;
+}
+.wt-room button { font: inherit; color: inherit; cursor: pointer; }
+.wt-room button:focus-visible { outline: 2px solid #f2c14e; outline-offset: 1px; }
+.wt-sp { flex: 1; }
+.wt-muted { color: #8f95a0; }
+
+/* 상단 바 */
+.wt-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 7px 12px; border-bottom: 1px solid #23262b; flex-shrink: 0;
+}
+.wt-title { font-weight: 600; letter-spacing: -.01em; }
+.wt-count { color: #8f95a0; font-variant-numeric: tabular-nums; font-size: 12px; }
+.wt-btn {
+    background: #1c1f24; border: 1px solid #2c3037; border-radius: 6px;
+    padding: 4px 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; line-height: 1.4;
+}
+.wt-btn:hover { background: #24282e; }
+.wt-btn.wt-primary { background: #f2c14e; color: #1a1400; border-color: transparent; font-weight: 600; }
+.wt-btn.wt-primary:hover { background: #f5cb6a; }
+.wt-btn.wt-icon { width: 28px; height: 26px; padding: 0; justify-content: center; }
+
+/* 본문: 격자 + (나중을 위한) 채팅 자리 */
+.wt-body { flex: 1; min-height: 0; display: flex; }
+.wt-scroll { flex: 1; min-width: 0; overflow-y: auto; padding: 8px; }
+.wt-chat { width: 320px; border-left: 1px solid #23262b; }
+.wt-grid { display: grid; gap: 6px; grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr)); }
+.wt-empty { color: #8f95a0; text-align: center; margin: 80px 0; }
+
+/* 타일 */
+.wt-tile {
+    position: relative; aspect-ratio: 16 / 9; background: #000;
+    border: 1px solid #262a30; border-radius: 4px; overflow: hidden;
+}
+.wt-tile.sound { border-color: #f2c14e; box-shadow: inset 0 0 0 1px #f2c14e; }
+.wt-tile iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; opacity: 0; transition: opacity .25s ease; }
+.wt-tile.ready iframe { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .wt-tile iframe { transition: none; } }
+
+.wt-tile-top {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 2;
+    display: flex; align-items: center; gap: 6px; padding: 5px 6px;
+    background: linear-gradient(rgba(0,0,0,.65), rgba(0,0,0,0));
+    font-size: 11px; opacity: 0; transition: opacity .15s ease; pointer-events: none;
+}
+.wt-tile:hover .wt-tile-top, .wt-tile:focus-within .wt-tile-top { opacity: 1; pointer-events: auto; }
+.wt-live { background: #e5322d; color: #fff; font: 700 9px/1 ui-monospace, Menlo, monospace; padding: 3px 5px; border-radius: 3px; letter-spacing: .05em; flex-shrink: 0; }
+.wt-live.off { background: #3a3f48; }
+.wt-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.wt-viewers { color: #c9ccd2; font-variant-numeric: tabular-nums; }
+.wt-remove { width: 22px; height: 20px; font-size: 14px; line-height: 1; }
+
+.wt-tile-sound {
+    position: absolute; right: 6px; bottom: 6px; z-index: 2;
+    background: rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.15); border-radius: 999px;
+    padding: 3px 9px; font-size: 11px; color: #e9eaed;
+}
+.wt-tile.sound .wt-tile-sound { background: #f2c14e; color: #1a1400; border-color: transparent; font-weight: 600; }
+
+.wt-offline {
+    position: absolute; inset: 0; z-index: 3; display: none; place-items: center;
+    background: rgba(0,0,0,.72); color: #c9ccd2; font-size: 13px;
+}
+.wt-tile.offline .wt-offline { display: grid; }
+.wt-tile.offline .wt-tile-sound { display: none; }
+
+/* 설정 서랍 */
+.wt-drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: 280px; z-index: 20;
+    background: #16181c; border-left: 1px solid #2a2e35; padding: 12px 14px; overflow-y: auto;
+    transform: translateX(100%); transition: transform .22s ease;
+}
+.wt-drawer.open { transform: none; }
+@media (prefers-reduced-motion: reduce) { .wt-drawer { transition: none; } }
+.wt-drawer h2, .wt-panel h2 { margin: 0 0 10px; font-size: 14px; font-weight: 600; display: flex; justify-content: space-between; align-items: center; }
+.wt-set-head { font: 500 10px/1 ui-monospace, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; color: #8f95a0; margin: 12px 0 4px; }
+.wt-set-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #23262b; cursor: pointer; }
+.wt-set-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.wt-set-label { font-size: 12.5px; font-weight: 500; }
+.wt-set-desc { font-size: 11px; color: #8f95a0; }
+.wt-toggle { position: relative; width: 34px; height: 20px; flex-shrink: 0; }
+.wt-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+.wt-slider { position: absolute; inset: 0; background: #3a3f48; border-radius: 999px; transition: background .2s ease; }
+.wt-slider::before { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s ease; }
+.wt-toggle input:checked + .wt-slider { background: #34c759; }
+.wt-toggle input:checked + .wt-slider::before { transform: translateX(14px); }
+.wt-toggle input:focus-visible + .wt-slider { outline: 2px solid #f2c14e; outline-offset: 1px; }
+
+/* 팔로우 패널 */
+.wt-panel {
+    position: fixed; top: 44px; left: 50%; transform: translateX(-50%); z-index: 20;
+    width: min(420px, calc(100vw - 24px)); max-height: calc(100vh - 60px);
+    background: #16181c; border: 1px solid #2a2e35; border-radius: 10px; padding: 12px 14px;
+    box-shadow: 0 16px 40px rgba(0,0,0,.5); display: flex; flex-direction: column;
+}
+.wt-panel[hidden] { display: none; }
+.wt-follow-list { overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.wt-follow-item {
+    display: flex; align-items: center; gap: 10px; width: 100%; text-align: left;
+    background: transparent; border: 0; border-radius: 6px; padding: 6px 8px;
+}
+.wt-follow-item:hover:not(:disabled) { background: #22262c; }
+.wt-follow-item:disabled { opacity: .45; cursor: default; }
+.wt-follow-item img, .wt-avatar { width: 30px; height: 30px; border-radius: 50%; background: #2c3037; object-fit: cover; flex-shrink: 0; }
+.wt-follow-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.wt-follow-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wt-follow-title { font-size: 11px; color: #8f95a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

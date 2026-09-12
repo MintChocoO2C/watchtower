@@ -1,15 +1,19 @@
-// Background - popup에서 content script로 메시지 전달
+// Background - 툴바 아이콘, 컨텍스트 메뉴, storage relay
 
-browser.runtime.onMessage.addListener((request, sender) => {
-    if (request.target === "content") {
-        return browser.tabs.query({ active: true, currentWindow: true })
-            .then(tabs => {
-                if (tabs.length === 0) {
-                    return { success: false, error: "no_active_tab" };
-                }
-                return browser.tabs.sendMessage(tabs[0].id, request);
-            });
+// 툴바 아이콘 클릭 → 상황실 탭 (이미 열려 있으면 그 탭으로)
+const ROOM_URL = "https://chzzk.naver.com/wt-room";
+browser.action.onClicked.addListener(async () => {
+    try {
+        const tabs = await browser.tabs.query({ url: ROOM_URL + "*" });
+        if (tabs.length > 0) {
+            await browser.tabs.update(tabs[0].id, { active: true });
+            await browser.windows.update(tabs[0].windowId, { focused: true }).catch(() => {});
+            return;
+        }
+    } catch (e) {
+        console.warn("[WT] 상황실 탭 조회 실패:", e?.message);
     }
+    await browser.tabs.create({ url: ROOM_URL });
 });
 
 // storage 변경 → 열린 모든 탭의 content script로 relay

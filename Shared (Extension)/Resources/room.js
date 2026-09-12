@@ -1,0 +1,401 @@
+// Watchtower — 상황실 (격리 세계, document_start)
+// 역할: 치지직의 빈 경로(/wt-room)에서 페이지를 통째로 우리 UI로 바꾸고,
+//       팔로우한 채널들의 라이브를 같은 출처 iframe(/live/<id>) 격자로 한 화면에 띄운다.
+//
+// 왜 치지직 도메인 안인가: 확장 내부 페이지에서 iframe으로 띄우면 Safari의
+// 추적 방지(ITP)가 쿠키를 막아 로그인이 끊긴다. 같은 출처면 쿠키가 유지되고
+// 부모에서 iframe 문서(플레이어)를 직접 제어할 수 있다. (2026-09-13 STP로 검증)
+//
+// 제약: 자동 재생은 음소거에서만 된다. 소리는 사용자가 타일을 클릭할 때만 켠다.
+
+(() => {
+    "use strict";
+    if (location.pathname !== "/wt-room") return;
+
+    // 치지직 SPA 로딩을 여기서 끊는다 — 부모 문서에서는 치지직 JS가 돌 필요가 없다.
+    window.stop();
+
+    const WT = window.WT;
+    const t = (key) => browser.i18n.getMessage(key) || key;
+    const MAX_CHANNELS = 16;
+    const STATUS_INTERVAL_MS = 60_000;
+    const API = "https://api.chzzk.naver.com/service";
+
+    // iframe 안(라이브 페이지)에서 플레이어만 남기는 CSS.
+    // 훅: #live_player_layout (플레이어 컨테이너). 조상의 transform/position을 풀어야
+    // fixed 배치가 iframe 뷰포트 기준이 된다.
+    const PLAYER_ONLY_CSS = `
+        #live_player_layout{position:fixed!important;inset:0!important;width:100vw!important;height:100vh!important;z-index:2147483000!important;background:#000}
+        body>#root>*>*:not(:has(#live_player_layout)){visibility:hidden!important}
+        html,body{overflow:hidden!important;background:#000!important}
+        #root,#root *:has(#live_player_layout){transform:none!important;filter:none!important;contain:none!important;position:static!important;margin:0!important;padding:0!important}
+    `;
+
+    // 설정 서랍에 놓을 기존 토글들 (예전 팝업의 토글이 여기로 옮겨왔다)
+    const SETTINGS = [
+        { section: "sectionVideo", items: [
+            { key: "autoPiPEnabled", label: "autoPipLabel", desc: "autoPipDesc" },
+            { key: "pressFastForwardEnabled", label: "pressFastForwardLabel", desc: "pressFastForwardDesc" },
+        ]},
+        { section: "sectionYouTube", items: [
+            { key: "ytLogoMiniplayerEnabled", label: "ytMiniplayerLabel", desc: "ytMiniplayerDesc" },
+            { key: "ytHideShortsEnabled", label: "hideShortsLabel", desc: "hideShortsDesc" },
+        ]},
+        { section: "sectionDeveloper", items: [
+            { key: "debugEnabled", label: "debugLabel", desc: "debugDesc" },
+        ]},
+    ];
+
+    // --- 상태 ---
+    const state = {
+        channels: [],   // [{ id, name, image }]
+        sound: null,    // 소리가 켜진 channelId
+        status: {},     // channelId -> { open, title, viewers }
+    };
+    const tiles = new Map();  // channelId -> { root, iframe, styled }
+
+    const el = (tag, attrs = {}, children = []) => {
+        const n = document.createElement(tag);
+        for (const [k, v] of Object.entries(attrs)) {
+            if (k === "class") n.className = v;
+            else if (k === "text") n.textContent = v;
+            else if (k.startsWith("on")) n.addEventListener(k.slice(2), v);
+            else if (v != null) n.setAttribute(k, v);
+        }
+        for (const c of children) if (c) n.appendChild(c);
+        return n;
+    };
+
+    // --- 문서 골격 ---
+    function buildDocument() {
+        document.documentElement.innerHTML = "";
+        document.documentElement.lang = navigator.language.startsWith("ko") ? "ko" : "en";
+        const head = el("head", {}, [
+            el("meta", { charset: "utf-8" }),
+            el("meta", { name: "viewport", content: "width=device-width, initial-scale=1" }),
+            el("title", { text: t("roomTitle") + " · Watchtower" }),
+        ]);
+        const body = el("body", { class: "wt-room" });
+        document.documentElement.append(head, body);
+
+        const bar = el("header", { class: "wt-bar" }, [
+            el("span", { class: "wt-title", text: t("roomTitle") }),
+            el("span", { class: "wt-count", id: "wt-count" }),
+            el("span", { class: "wt-sp" }),
+            el("button", { class: "wt-btn wt-primary", type: "button", onclick: openFollowPanel, text: "＋ " + t("roomAddFollow") }),
+            el("button", { class: "wt-btn", type: "button", onclick: addByUrl, text: t("roomAddUrl") }),
+            el("button", { class: "wt-btn wt-icon", type: "button", title: t("roomSettings"), "aria-label": t("roomSettings"), onclick: toggleSettings }, [gearIcon()]),
+        ]);
+        const scroll = el("main", { class: "wt-scroll" }, [
+            el("div", { class: "wt-grid", id: "wt-grid" }),
+            el("p", { class: "wt-empty", id: "wt-empty", text: t("roomEmpty") }),
+        ]);
+        // 채팅 자리 — 지금은 비워 둔다 (나중에 소리 채널의 채팅을 여기에 붙인다)
+        const chat = el("aside", { class: "wt-chat", id: "wt-chat", hidden: "" });
+        const drawer = buildSettingsDrawer();
+        const panel = el("div", { class: "wt-panel", id: "wt-follow", hidden: "" });
+        body.append(bar, el("div", { class: "wt-body" }, [scroll, chat]), drawer, panel);
+    }
+
+    function gearIcon() {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "15"); svg.setAttribute("height", "15");
+        svg.innerHTML = '<circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4" stroke="currentColor" stroke-width="1.4" fill="none"/>';
+        return svg;
+    }
+
+    // --- 설정 서랍 ---
+    function buildSettingsDrawer() {
+        const drawer = el("aside", { class: "wt-drawer", id: "wt-drawer", "aria-label": t("roomSettings") }, [
+            el("h2", {}, [
+                el("span", { text: t("roomSettings") }),
+                el("button", { class: "wt-btn", type: "button", onclick: toggleSettings, text: t("roomClose") }),
+            ]),
+        ]);
+        for (const group of SETTINGS) {
+            drawer.appendChild(el("div", { class: "wt-set-head", text: t(group.section) }));
+            for (const item of group.items) {
+                const input = el("input", { type: "checkbox", "data-key": item.key });
+                input.addEventListener("change", () => browser.storage.local.set({ [item.key]: input.checked }));
+                drawer.appendChild(el("label", { class: "wt-set-row" }, [
+                    el("span", { class: "wt-set-text" }, [
+                        el("span", { class: "wt-set-label", text: t(item.label) }),
+                        el("span", { class: "wt-set-desc", text: t(item.desc) }),
+                    ]),
+                    el("span", { class: "wt-toggle" }, [input, el("span", { class: "wt-slider" })]),
+                ]));
+            }
+        }
+        return drawer;
+    }
+
+    function toggleSettings() { document.getElementById("wt-drawer").classList.toggle("open"); }
+
+    async function loadSettings() {
+        const keys = SETTINGS.flatMap(g => g.items.map(i => i.key));
+        const r = await WT.load(keys);
+        for (const key of keys) {
+            const input = document.querySelector(`input[data-key="${key}"]`);
+            if (input) input.checked = r[key] ?? false;
+        }
+        WT.watch(keys, (c) => {
+            for (const key of Object.keys(c)) {
+                const input = document.querySelector(`input[data-key="${key}"]`);
+                if (input) input.checked = c[key].newValue ?? false;
+            }
+        });
+    }
+
+    // --- 채널 목록 저장/복원 ---
+    async function loadState() {
+        const r = await WT.load(["roomChannels", "roomSound"]);
+        state.channels = Array.isArray(r.roomChannels) ? r.roomChannels.slice(0, MAX_CHANNELS) : [];
+        state.sound = r.roomSound ?? null;
+    }
+    function saveState() {
+        browser.storage.local.set({ roomChannels: state.channels, roomSound: state.sound }).catch(() => {});
+    }
+
+    // --- 격자 렌더 ---
+    function gridColumns(n) { return Math.min(4, Math.ceil(Math.sqrt(Math.max(1, n)))); }
+
+    function render() {
+        const grid = document.getElementById("wt-grid");
+        const n = state.channels.length;
+        grid.style.setProperty("--cols", gridColumns(n));
+        document.getElementById("wt-empty").hidden = n > 0;
+        document.getElementById("wt-count").textContent = n ? `${n} · ${gridColumns(n)}${t("roomCols")}` : "";
+
+        // 없어진 채널 타일 제거
+        for (const [id, tile] of tiles) {
+            if (!state.channels.some(c => c.id === id)) { tile.root.remove(); tiles.delete(id); }
+        }
+        // 순서대로 배치 (있으면 재사용 — iframe 재로드 방지)
+        for (const ch of state.channels) {
+            let tile = tiles.get(ch.id);
+            if (!tile) { tile = createTile(ch); tiles.set(ch.id, tile); }
+            grid.appendChild(tile.root);
+            updateTile(ch.id);
+        }
+    }
+
+    function createTile(ch) {
+        const iframe = el("iframe", {
+            src: `/live/${ch.id}`,
+            allow: "autoplay; fullscreen",
+            title: ch.name || ch.id,
+        });
+        const root = el("div", { class: "wt-tile", "data-id": ch.id }, [
+            iframe,
+            el("div", { class: "wt-tile-top" }, [
+                el("span", { class: "wt-live", text: "LIVE" }),
+                el("span", { class: "wt-name", text: ch.name || ch.id }),
+                el("span", { class: "wt-viewers" }),
+                el("span", { class: "wt-sp" }),
+                el("button", { class: "wt-btn wt-icon wt-remove", type: "button", title: t("roomRemove"), "aria-label": t("roomRemove"), text: "×",
+                    onclick: (e) => { e.stopPropagation(); removeChannel(ch.id); } }),
+            ]),
+            el("button", { class: "wt-tile-sound", type: "button", onclick: () => setSound(ch.id) }, [
+                el("span", { class: "wt-sound-label" }),
+            ]),
+            el("div", { class: "wt-offline", text: t("roomOffline") }),
+        ]);
+        const tile = { root, iframe, styled: false };
+        iframe.addEventListener("load", () => onTileLoad(ch.id));
+        return tile;
+    }
+
+    // iframe 로드 → 플레이어만 남기는 CSS 주입 + 음소거 정책 적용
+    function onTileLoad(id) {
+        const tile = tiles.get(id);
+        if (!tile) return;
+        const doc = tile.iframe.contentDocument;
+        if (!doc) { WT.log("room", "iframe 문서 접근 불가", id); return; }
+        const style = doc.createElement("style");
+        style.id = "wt-player-only";
+        style.textContent = PLAYER_ONLY_CSS;
+        (doc.head || doc.documentElement).appendChild(style);
+        tile.styled = true;
+        tile.root.classList.add("ready");
+        applySound(id);
+        WT.log("room", "타일 준비", id);
+    }
+
+    function tileVideo(id) {
+        const tile = tiles.get(id);
+        try { return tile?.iframe.contentDocument?.querySelector("video") || null; } catch { return null; }
+    }
+
+    // 소리는 한 채널만. 클릭(사용자 제스처) 안에서 muted를 풀어야 Safari가 재생을 허용한다.
+    function setSound(id) {
+        state.sound = state.sound === id ? null : id;
+        saveState();
+        for (const ch of state.channels) applySound(ch.id);
+    }
+    function applySound(id) {
+        const v = tileVideo(id);
+        const on = state.sound === id;
+        if (v) {
+            v.muted = !on;
+            if (on && v.paused) v.play().catch(() => {});
+        }
+        updateTile(id);
+    }
+
+    function updateTile(id) {
+        const tile = tiles.get(id);
+        if (!tile) return;
+        const st = state.status[id];
+        const on = state.sound === id;
+        tile.root.classList.toggle("sound", on);
+        tile.root.classList.toggle("offline", st ? !st.open : false);
+        tile.root.querySelector(".wt-sound-label").textContent = on ? "🔊 " + t("roomSound") : "🔇 " + t("roomMuted");
+        tile.root.querySelector(".wt-viewers").textContent = st?.open && st.viewers != null ? st.viewers.toLocaleString() : "";
+        tile.root.querySelector(".wt-name").title = st?.title || "";
+    }
+
+    // --- 채널 추가/제거 ---
+    function addChannel(ch) {
+        if (!ch?.id) return;
+        if (state.channels.some(c => c.id === ch.id)) return;
+        if (state.channels.length >= MAX_CHANNELS) { alert(t("roomMax")); return; }
+        state.channels.push({ id: ch.id, name: ch.name || "", image: ch.image || "" });
+        saveState(); render(); refreshStatus([ch.id]);
+    }
+    function removeChannel(id) {
+        state.channels = state.channels.filter(c => c.id !== id);
+        if (state.sound === id) state.sound = null;
+        saveState(); render();
+    }
+
+    // URL 또는 채널 ID로 추가: chzzk.naver.com/live/<id>, chzzk.naver.com/<id>, 또는 32자리 hex
+    async function addByUrl() {
+        const input = prompt(t("roomAddUrlPrompt"));
+        if (!input) return;
+        const m = input.trim().match(/([0-9a-f]{32})/i);
+        if (!m) { alert(t("roomBadUrl")); return; }
+        const id = m[1].toLowerCase();
+        let name = "";
+        try {
+            const r = await fetch(`${API}/v1/channels/${id}`, { credentials: "include" });
+            const j = await r.json();
+            name = j?.content?.channelName || "";
+        } catch {}
+        addChannel({ id, name });
+    }
+
+    // --- 팔로우 목록 패널 ---
+    async function openFollowPanel() {
+        const panel = document.getElementById("wt-follow");
+        panel.hidden = false;
+        panel.innerHTML = "";
+        panel.appendChild(el("h2", {}, [
+            el("span", { text: t("roomAddFollow") }),
+            el("button", { class: "wt-btn", type: "button", onclick: () => { panel.hidden = true; }, text: t("roomClose") }),
+        ]));
+        const list = el("div", { class: "wt-follow-list" });
+        panel.appendChild(list);
+        list.appendChild(el("p", { class: "wt-muted", text: "…" }));
+
+        let items;
+        try {
+            items = await fetchFollowings();
+        } catch (e) {
+            WT.log("room", "팔로우 목록 실패", e?.message);
+            list.replaceChildren(el("p", { class: "wt-muted", text: t("roomLoginNeeded") }));
+            return;
+        }
+        if (!items.length) { list.replaceChildren(el("p", { class: "wt-muted", text: t("roomFollowEmpty") })); return; }
+        list.replaceChildren();
+        for (const it of items) {
+            const added = state.channels.some(c => c.id === it.id);
+            list.appendChild(el("button", { class: "wt-follow-item" + (added ? " added" : ""), type: "button", disabled: added ? "" : null,
+                onclick: () => { addChannel(it); panel.hidden = true; } }, [
+                it.image ? el("img", { src: it.image, alt: "" }) : el("span", { class: "wt-avatar" }),
+                el("span", { class: "wt-follow-text" }, [
+                    el("span", { class: "wt-follow-name", text: it.name }),
+                    el("span", { class: "wt-follow-title", text: it.open ? (it.title || "LIVE") : t("roomOffline") }),
+                ]),
+                el("span", { class: "wt-live" + (it.open ? "" : " off"), text: it.open ? "LIVE" : "OFF" }),
+            ]));
+        }
+    }
+
+    // 라이브 중인 팔로우 채널 우선, 그 다음 나머지 팔로우 채널.
+    // 응답 형태는 치지직 내부 API라 바뀔 수 있어 channelId를 가진 객체를 넓게 찾는다.
+    async function fetchFollowings() {
+        const seen = new Map();
+        const collect = (json, open) => {
+            const walk = (node) => {
+                if (!node || typeof node !== "object") return;
+                if (Array.isArray(node)) { node.forEach(walk); return; }
+                const ch = node.channel && typeof node.channel === "object" ? node.channel : node;
+                if (typeof ch.channelId === "string" && ch.channelId.length === 32 && !seen.has(ch.channelId)) {
+                    seen.set(ch.channelId, {
+                        id: ch.channelId, name: ch.channelName || "", image: ch.channelImageUrl || "",
+                        open: open ?? (node.liveInfo?.liveStatus === "OPEN" || node.streamer?.openLive === true),
+                        title: node.liveInfo?.liveTitle || node.liveTitle || "",
+                    });
+                }
+                for (const v of Object.values(node)) if (v && typeof v === "object") walk(v);
+            };
+            walk(json?.content);
+        };
+        const live = await fetch(`${API}/v1/channels/followings/live?page=0&size=50`, { credentials: "include" });
+        if (live.status === 401 || live.status === 403) throw new Error("login");
+        collect(await live.json(), true);
+        try {
+            const all = await fetch(`${API}/v1/channels/followings?page=0&size=100`, { credentials: "include" });
+            if (all.ok) collect(await all.json(), undefined);
+        } catch {}
+        const arr = [...seen.values()];
+        arr.sort((a, b) => (b.open - a.open) || a.name.localeCompare(b.name));
+        return arr;
+    }
+
+    // --- 방송 상태 폴링 (공개 API, 로그인 불필요) ---
+    async function refreshStatus(ids = state.channels.map(c => c.id)) {
+        await Promise.all(ids.map(async (id) => {
+            try {
+                const r = await fetch(`${API}/v2/channels/${id}/live-detail`, { credentials: "include" });
+                const c = (await r.json())?.content;
+                const wasOpen = state.status[id]?.open;
+                state.status[id] = c ? { open: c.status === "OPEN", title: c.liveTitle || "", viewers: c.concurrentUserCount } : { open: false };
+                // 이름 없이 추가된 채널(URL 추가)은 여기서 이름을 채운다
+                const ch = state.channels.find(x => x.id === id);
+                if (ch && !ch.name && c?.channel?.channelName) {
+                    ch.name = c.channel.channelName; saveState();
+                    const nameEl = tiles.get(id)?.root.querySelector(".wt-name");
+                    if (nameEl) nameEl.textContent = ch.name;
+                }
+                // 종료 → 시작으로 바뀌면 iframe을 다시 불러 재생시킨다
+                if (wasOpen === false && state.status[id].open) {
+                    const tile = tiles.get(id);
+                    if (tile) { tile.styled = false; tile.root.classList.remove("ready"); tile.iframe.src = tile.iframe.src; }
+                }
+            } catch (e) {
+                WT.log("room", "상태 조회 실패", id, e?.message);
+            }
+            updateTile(id);
+        }));
+    }
+
+    // --- 시작 ---
+    async function main() {
+        buildDocument();
+        await Promise.all([loadSettings(), loadState()]);
+        render();
+        refreshStatus();
+        setInterval(() => refreshStatus(), STATUS_INTERVAL_MS);
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape") {
+                document.getElementById("wt-drawer").classList.remove("open");
+                document.getElementById("wt-follow").hidden = true;
+            }
+        });
+        WT.log("room", "상황실 시작", state.channels.length, "채널");
+    }
+
+    // document_start 에서 실행된다. 파서가 남긴 게 있어도 buildDocument 가 덮어쓴다.
+    main();
+})();

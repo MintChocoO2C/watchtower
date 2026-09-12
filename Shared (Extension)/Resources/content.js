@@ -103,15 +103,3 @@ window.WT.watch(["ytHideShortsEnabled"], (c) => applyHideShorts(c.ytHideShortsEn
 // 저장된 설정 불러오기
 loadAndSendSettings();
 
-// --- 팝업 상태 질의 응답 ---
-browser.runtime.onMessage.addListener((request) => {
-    if (request.action === "getStatus") {
-        const videos = Array.from(document.querySelectorAll("video"));
-        const playing = videos.filter(v => !v.paused && !v.ended);
-        return Promise.resolve({
-            videoCount: videos.length,
-            playingCount: playing.length
-        });
-    }
-});
-
