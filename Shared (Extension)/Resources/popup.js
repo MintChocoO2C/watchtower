@@ -27,9 +27,15 @@ browser.storage.local.get([
     debugToggle.checked = result.debugEnabled ?? false;
 });
 
+// 상태 줄은 두 가지가 공유한다: 토글 ON/OFF 토스트(2초)와 현재 탭 영상 상태(상시).
+// 토스트가 사라지면 영상 상태를 다시 보여준다.
+let videoStatus = "";
+let toastTimer = null;
+
 function showStatus(msg) {
     statusEl.textContent = msg;
-    setTimeout(() => { statusEl.textContent = ""; }, 2000);
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { statusEl.textContent = videoStatus; }, 2000);
 }
 
 // 토글 변경 시 설정 저장
@@ -66,10 +72,11 @@ async function refreshStatus() {
             action: "getStatus"
         });
         if (response && response.playingCount > 0) {
-            statusEl.textContent = t("videoPlaying", [String(response.playingCount)]);
+            videoStatus = t("videoPlaying", [String(response.playingCount)]);
         } else if (response && response.videoCount > 0) {
-            statusEl.textContent = t("videoPaused");
+            videoStatus = t("videoPaused");
         }
+        if (!toastTimer) statusEl.textContent = videoStatus;
     } catch {
         // Content script not loaded on this page
     }
