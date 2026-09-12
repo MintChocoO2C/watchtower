@@ -67,19 +67,18 @@ browser.contextMenus.onClicked.addListener((info, tab) => {
                     return;
                 }
 
-                const ko = navigator.language?.startsWith("ko");
-                const toast = (msg, err) => {
-                    if (typeof _wtShowFrameToast === "function") _wtShowFrameToast(msg, err);
+                // 안내 문구·토스트는 page-script.js(MAIN 세계)의 _wtFrameMsg / _wtShowFrameToast 를 사용
+                const toast = (key, err) => {
+                    if (typeof _wtShowFrameToast === "function" && typeof _wtFrameMsg === "function") {
+                        _wtShowFrameToast(_wtFrameMsg(key), err);
+                    }
                 };
 
                 let dataUrl;
                 try {
                     dataUrl = canvas.toDataURL("image/png");
                 } catch (e) {
-                    const msg = e?.name === "SecurityError"
-                        ? (ko ? "보안 정책으로 캡처가 제한됩니다" : "Capture blocked by security policy")
-                        : (ko ? "캡처에 실패했습니다" : "Capture failed");
-                    toast(msg, true);
+                    toast(e?.name === "SecurityError" ? "blocked" : "failed", true);
                     return;
                 }
 
@@ -92,11 +91,11 @@ browser.contextMenus.onClicked.addListener((info, tab) => {
                 navigator.clipboard.write([new ClipboardItem({ "image/png": blob })])
                     .then(() => {
                         dbg("clipboard.write 성공");
-                        toast(ko ? "클립보드에 복사됐습니다" : "Copied to clipboard");
+                        toast("copied");
                     })
                     .catch(e => {
                         console.error("[WT] clipboard.write 실패:", e.name, e.message);
-                        toast(ko ? "클립보드 복사에 실패했습니다" : "Clipboard copy failed", true);
+                        toast("copyFail", true);
                     });
             }
         }).catch(e => console.error("[WT background] executeScript 오류:", e.name, e.message));
