@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트 개요
 
-Watchtower는 Xcode로 iOS + macOS 앱으로 패키징되는 **Safari 웹 확장**(Manifest V3)이다. 영상 시청 편의 기능(자동 PiP, 유튜브 미니플레이어, Shorts 숨김, 동영상 프레임 캡처, 눌러서 빨리감기)을 제공한다. 실제 개발은 대부분 `Shared (Extension)/Resources/` 아래 JavaScript에서 이루어지며, Swift 호스트 앱은 거의 Apple 템플릿 그대로다.
+Watchtower는 Xcode로 macOS 앱으로 패키징되는 (macOS 전용, iOS 미지원) **Safari 웹 확장**(Manifest V3)이다. 영상 시청 편의 기능(자동 PiP, 유튜브 미니플레이어, Shorts 숨김, 동영상 프레임 캡처, 눌러서 빨리감기)을 제공한다. 실제 개발은 대부분 `Shared (Extension)/Resources/` 아래 JavaScript에서 이루어지며, Swift 호스트 앱은 거의 Apple 템플릿 그대로다.
 
 ## 언어 정책 (한글 우선)
 

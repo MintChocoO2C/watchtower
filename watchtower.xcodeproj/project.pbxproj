@@ -7,18 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		17BAA1822F78250A00DDC21A /* watchtower Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 17BAA1812F78250A00DDC21A /* watchtower Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		17BAA18C2F78250A00DDC21A /* watchtower Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 17BAA18B2F78250A00DDC21A /* watchtower Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		17BAA1832F78250A00DDC21A /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 17BAA1482F78250800DDC21A /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 17BAA1802F78250A00DDC21A;
-			remoteInfo = "watchtower Extension (iOS)";
-		};
 		17BAA18D2F78250A00DDC21A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 17BAA1482F78250800DDC21A /* Project object */;
@@ -29,17 +21,6 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		17BAA1B42F78250A00DDC21A /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				17BAA1822F78250A00DDC21A /* watchtower Extension.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		17BAA1BE2F78250A00DDC21A /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -54,40 +35,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		17BAA1642F78250A00DDC21A /* watchtower.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = watchtower.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		17BAA1762F78250A00DDC21A /* watchtower.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = watchtower.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		17BAA1812F78250A00DDC21A /* watchtower Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "watchtower Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		17BAA18B2F78250A00DDC21A /* watchtower Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "watchtower Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		17BAA1D02F78250A00DDC21A /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		17BAA1AF2F78250A00DDC21A /* Exceptions for "Shared (App)" folder in "watchtower (iOS)" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"/Localized: Resources/Main.html",
-				Assets.xcassets,
-				Resources/Icon.png,
-				Resources/Script.js,
-				Resources/Style.css,
-				ViewController.swift,
-			);
-			target = 17BAA1632F78250A00DDC21A /* watchtower (iOS) */;
-		};
-		17BAA1B32F78250A00DDC21A /* Exceptions for "iOS (Extension)" folder in "watchtower Extension (iOS)" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 17BAA1802F78250A00DDC21A /* watchtower Extension (iOS) */;
-		};
-		17BAA1B82F78250A00DDC21A /* Exceptions for "iOS (App)" folder in "watchtower (iOS)" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 17BAA1632F78250A00DDC21A /* watchtower (iOS) */;
-		};
 		17BAA1B92F78250A00DDC21A /* Exceptions for "Shared (App)" folder in "watchtower (macOS)" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -106,24 +59,6 @@
 				Info.plist,
 			);
 			target = 17BAA18A2F78250A00DDC21A /* watchtower Extension (macOS) */;
-		};
-		17BAA1C22F78250A00DDC21A /* Exceptions for "Shared (Extension)" folder in "watchtower Extension (iOS)" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Resources/_locales,
-				Resources/background.js,
-				Resources/content.js,
-				Resources/images,
-				Resources/manifest.json,
-				"Resources/page-script.js",
-				Resources/popup.css,
-				Resources/popup.html,
-				Resources/popup.js,
-				"Resources/speed.js",
-				"Resources/wt-core.js",
-				SafariWebExtensionHandler.swift,
-			);
-			target = 17BAA1802F78250A00DDC21A /* watchtower Extension (iOS) */;
 		};
 		17BAA1C32F78250A00DDC21A /* Exceptions for "Shared (Extension)" folder in "watchtower Extension (macOS)" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -149,7 +84,6 @@
 		17BAA14C2F78250800DDC21A /* Shared (App) */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				17BAA1AF2F78250A00DDC21A /* Exceptions for "Shared (App)" folder in "watchtower (iOS)" target */,
 				17BAA1B92F78250A00DDC21A /* Exceptions for "Shared (App)" folder in "watchtower (macOS)" target */,
 			);
 			path = "Shared (App)";
@@ -158,7 +92,6 @@
 		17BAA1552F78250A00DDC21A /* Shared (Extension) */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				17BAA1C22F78250A00DDC21A /* Exceptions for "Shared (Extension)" folder in "watchtower Extension (iOS)" target */,
 				17BAA1C32F78250A00DDC21A /* Exceptions for "Shared (Extension)" folder in "watchtower Extension (macOS)" target */,
 			);
 			explicitFolders = (
@@ -168,25 +101,9 @@
 			path = "Shared (Extension)";
 			sourceTree = "<group>";
 		};
-		17BAA1662F78250A00DDC21A /* iOS (App) */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				17BAA1B82F78250A00DDC21A /* Exceptions for "iOS (App)" folder in "watchtower (iOS)" target */,
-			);
-			path = "iOS (App)";
-			sourceTree = "<group>";
-		};
 		17BAA1772F78250A00DDC21A /* macOS (App) */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "macOS (App)";
-			sourceTree = "<group>";
-		};
-		17BAA1852F78250A00DDC21A /* iOS (Extension) */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				17BAA1B32F78250A00DDC21A /* Exceptions for "iOS (Extension)" folder in "watchtower Extension (iOS)" target */,
-			);
-			path = "iOS (Extension)";
 			sourceTree = "<group>";
 		};
 		17BAA18F2F78250A00DDC21A /* macOS (Extension) */ = {
@@ -200,21 +117,7 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		17BAA1612F78250A00DDC21A /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		17BAA1732F78250A00DDC21A /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		17BAA17E2F78250A00DDC21A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -236,9 +139,7 @@
 			children = (
 				17BAA14C2F78250800DDC21A /* Shared (App) */,
 				17BAA1552F78250A00DDC21A /* Shared (Extension) */,
-				17BAA1662F78250A00DDC21A /* iOS (App) */,
 				17BAA1772F78250A00DDC21A /* macOS (App) */,
-				17BAA1852F78250A00DDC21A /* iOS (Extension) */,
 				17BAA18F2F78250A00DDC21A /* macOS (Extension) */,
 				17BAA1652F78250A00DDC21A /* Products */,
 				17BAA1D12F78250A00DDC21A /* Config */,
@@ -248,9 +149,7 @@
 		17BAA1652F78250A00DDC21A /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				17BAA1642F78250A00DDC21A /* watchtower.app */,
 				17BAA1762F78250A00DDC21A /* watchtower.app */,
-				17BAA1812F78250A00DDC21A /* watchtower Extension.appex */,
 				17BAA18B2F78250A00DDC21A /* watchtower Extension.appex */,
 			);
 			name = Products;
@@ -267,30 +166,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		17BAA1632F78250A00DDC21A /* watchtower (iOS) */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 17BAA1B52F78250A00DDC21A /* Build configuration list for PBXNativeTarget "watchtower (iOS)" */;
-			buildPhases = (
-				17BAA1602F78250A00DDC21A /* Sources */,
-				17BAA1612F78250A00DDC21A /* Frameworks */,
-				17BAA1622F78250A00DDC21A /* Resources */,
-				17BAA1B42F78250A00DDC21A /* Embed Foundation Extensions */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				17BAA1842F78250A00DDC21A /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				17BAA1662F78250A00DDC21A /* iOS (App) */,
-			);
-			name = "watchtower (iOS)";
-			packageProductDependencies = (
-			);
-			productName = "watchtower (iOS)";
-			productReference = 17BAA1642F78250A00DDC21A /* watchtower.app */;
-			productType = "com.apple.product-type.application";
-		};
 		17BAA1752F78250A00DDC21A /* watchtower (macOS) */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 17BAA1BF2F78250A00DDC21A /* Build configuration list for PBXNativeTarget "watchtower (macOS)" */;
@@ -314,28 +189,6 @@
 			productName = "watchtower (macOS)";
 			productReference = 17BAA1762F78250A00DDC21A /* watchtower.app */;
 			productType = "com.apple.product-type.application";
-		};
-		17BAA1802F78250A00DDC21A /* watchtower Extension (iOS) */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 17BAA1B02F78250A00DDC21A /* Build configuration list for PBXNativeTarget "watchtower Extension (iOS)" */;
-			buildPhases = (
-				17BAA17D2F78250A00DDC21A /* Sources */,
-				17BAA17E2F78250A00DDC21A /* Frameworks */,
-				17BAA17F2F78250A00DDC21A /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				17BAA1852F78250A00DDC21A /* iOS (Extension) */,
-			);
-			name = "watchtower Extension (iOS)";
-			packageProductDependencies = (
-			);
-			productName = "watchtower Extension (iOS)";
-			productReference = 17BAA1812F78250A00DDC21A /* watchtower Extension.appex */;
-			productType = "com.apple.product-type.app-extension";
 		};
 		17BAA18A2F78250A00DDC21A /* watchtower Extension (macOS) */ = {
 			isa = PBXNativeTarget;
@@ -369,13 +222,7 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
-					17BAA1632F78250A00DDC21A = {
-						CreatedOnToolsVersion = 26.4;
-					};
 					17BAA1752F78250A00DDC21A = {
-						CreatedOnToolsVersion = 26.4;
-					};
-					17BAA1802F78250A00DDC21A = {
 						CreatedOnToolsVersion = 26.4;
 					};
 					17BAA18A2F78250A00DDC21A = {
@@ -397,30 +244,14 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				17BAA1632F78250A00DDC21A /* watchtower (iOS) */,
 				17BAA1752F78250A00DDC21A /* watchtower (macOS) */,
-				17BAA1802F78250A00DDC21A /* watchtower Extension (iOS) */,
 				17BAA18A2F78250A00DDC21A /* watchtower Extension (macOS) */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		17BAA1622F78250A00DDC21A /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		17BAA1742F78250A00DDC21A /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		17BAA17F2F78250A00DDC21A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -437,21 +268,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		17BAA1602F78250A00DDC21A /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		17BAA1722F78250A00DDC21A /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		17BAA17D2F78250A00DDC21A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -468,11 +285,6 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		17BAA1842F78250A00DDC21A /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 17BAA1802F78250A00DDC21A /* watchtower Extension (iOS) */;
-			targetProxy = 17BAA1832F78250A00DDC21A /* PBXContainerItemProxy */;
-		};
 		17BAA18E2F78250A00DDC21A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 17BAA18A2F78250A00DDC21A /* watchtower Extension (macOS) */;
@@ -481,154 +293,6 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		17BAA1B12F78250A00DDC21A /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "watchtower Extension";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					SafariServices,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.coffeeanniversary.watchtower.Extension;
-				PRODUCT_NAME = "watchtower Extension";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		17BAA1B22F78250A00DDC21A /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "watchtower Extension";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					SafariServices,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.coffeeanniversary.watchtower.Extension;
-				PRODUCT_NAME = "watchtower Extension";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		17BAA1B62F78250A00DDC21A /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "iOS (App)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = watchtower;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					SafariServices,
-					"-framework",
-					WebKit,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.coffeeanniversary.watchtower;
-				PRODUCT_NAME = watchtower;
-				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		17BAA1B72F78250A00DDC21A /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "iOS (App)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = watchtower;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
-				INFOPLIST_KEY_UIMainStoryboardFile = Main;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				OTHER_LDFLAGS = (
-					"-framework",
-					SafariServices,
-					"-framework",
-					WebKit,
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.coffeeanniversary.watchtower;
-				PRODUCT_NAME = watchtower;
-				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
 		17BAA1BB2F78250A00DDC21A /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -647,7 +311,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				OTHER_LDFLAGS = (
 					"-framework",
 					SafariServices,
@@ -682,7 +346,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				OTHER_LDFLAGS = (
 					"-framework",
 					SafariServices,
@@ -719,7 +383,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				OTHER_LDFLAGS = (
 					"-framework",
 					SafariServices,
@@ -759,7 +423,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.14;
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				OTHER_LDFLAGS = (
 					"-framework",
 					SafariServices,
@@ -903,24 +567,6 @@
 			buildConfigurations = (
 				17BAA1C42F78250A00DDC21A /* Debug */,
 				17BAA1C52F78250A00DDC21A /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		17BAA1B02F78250A00DDC21A /* Build configuration list for PBXNativeTarget "watchtower Extension (iOS)" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				17BAA1B12F78250A00DDC21A /* Debug */,
-				17BAA1B22F78250A00DDC21A /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		17BAA1B52F78250A00DDC21A /* Build configuration list for PBXNativeTarget "watchtower (iOS)" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				17BAA1B62F78250A00DDC21A /* Debug */,
-				17BAA1B72F78250A00DDC21A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
