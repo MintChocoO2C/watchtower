@@ -15,17 +15,22 @@ Watchtower는 Xcode로 macOS 앱으로 패키징되는 (macOS 전용, iOS 미지
 - README: `README.ko.md`가 원본이고 `README.md`가 영어 번역본이다.
 - 코드 내 메시지(토스트 등)는 보통 `navigator.language.startsWith("ko")`로 분기하며 한글 문자열을 기본값으로 둔다.
 
-## 빌드 / 실행
+## 빌드 / 설치 / 검증
 
-CLI 빌드·테스트·린트 설정은 없다. Xcode 프로젝트로 다룬다.
+테스트·린트 설정은 없다. 빌드는 Xcode 또는 `xcodebuild` 로 한다.
 
-- `watchtower.xcodeproj`를 Xcode에서 열고 빌드 & 실행(⌘R)하면 호스트 앱이 한 번 뜬다. 이후 Safari → 설정 → 확장 프로그램에서 **Watchtower**를 활성화한다.
-- 확장 리소스(JS/HTML/CSS)를 수정한 뒤에는 Xcode에서 다시 빌드하고 Safari에서 페이지를 새로고침해야 변경이 반영된다.
-- 요구 사항: macOS 10.14+, Xcode 15+. 타깃은 `watchtower (macOS)` / `watchtower Extension (macOS)` 둘뿐이다.
-- **서명 팀 ID는 저장소에 넣지 않는다.** 프로젝트 빌드 설정이 `Config/Base.xcconfig`를 참조하고, 그 파일이 `Config/Local.xcconfig`(git 무시)를 `#include?`로 선택 포함한다. `DEVELOPMENT_TEAM`은 Local.xcconfig에만 둔다. pbxproj에 `DEVELOPMENT_TEAM`이 생기면 커밋하지 말고 되돌릴 것.
-- **Safari MCP(`safari-mcp-stp`)의 자동화 창에는 확장이 로드되지 않는다.** 확장 자체의 end-to-end 확인은 사용자가 실제 Safari에서 한다. MCP는 페이지 동작·DOM·치지직 API 검증과, 확장 코드를 shim과 함께 `evaluate_javascript`로 주입해 로직을 검증하는 데 쓴다.
-- CLI 빌드: `xcodebuild -project watchtower.xcodeproj -scheme "watchtower (macOS)" -configuration Debug build`. 결과물이 DerivedData에 등록되어 Safari에 확장이 두 개로 보일 수 있으니, 배포 위치(`/Applications/watchtower.app`)로 복사한 뒤 DerivedData 쪽은 `lsregister -u`로 등록 해제한다. 복사만 하면 Safari 확장 목록에서 사라질 수 있으니 `pluginkit -a <appex 경로>`로 확장을 다시 등록하고 호스트 앱을 한 번 실행한다.
-- 버전은 `manifest.json`의 `version`과 pbxproj의 `MARKETING_VERSION`을 함께 올린다.
+- **가장 빠른 길**: 프로젝트 스킬 `watchtower-build` (`.claude/skills/watchtower-build/`). `install.sh` 가 빌드 → `/Applications/watchtower.app` 교체 → DerivedData 결과물의 Launch Services 등록 해제 → `pluginkit -a` 로 확장 재등록 → 호스트 앱 1회 실행까지 한다. 끝나면 사용자에게 Safari 상황실 탭 새로고침을 요청한다.
+  - 왜 이 순서인가: DerivedData 결과물이 등록된 채로 두면 Safari 확장 목록에 Watchtower 가 두 개로 보이고, 앱을 복사만 하면 목록에서 사라진다.
+- Xcode 로 할 때: `watchtower.xcodeproj` 를 열고 ⌘R. 호스트 앱이 한 번 뜬 뒤 Safari → 설정 → 확장 프로그램에서 **Watchtower** 를 켠다. 리소스(JS/CSS)를 고치면 다시 빌드하고 페이지를 새로고침해야 반영된다.
+- 요구 사항: macOS 10.14+, Xcode 15+. 타깃은 `watchtower (macOS)` / `watchtower Extension (macOS)` 둘뿐이다(iOS 미지원).
+- **서명 팀 ID는 저장소에 넣지 않는다.** 프로젝트 빌드 설정이 `Config/Base.xcconfig` 를 참조하고, 그 파일이 `Config/Local.xcconfig`(git 무시)를 `#include?` 로 선택 포함한다. `DEVELOPMENT_TEAM` 은 Local.xcconfig 에만 둔다. pbxproj 에 `DEVELOPMENT_TEAM` 이 생기면 커밋하지 말고 되돌릴 것.
+- 버전은 `manifest.json` 의 `version` 과 pbxproj 의 `MARKETING_VERSION`(4곳)을 함께 올린다.
+
+### 검증 도구의 한계
+
+- **Safari MCP(`safari-mcp-stp`)가 여는 자동화 창에는 확장이 로드되지 않는다.** STP 에서 Watchtower 를 켜도 마찬가지다. 확장 자체(툴바 클릭, `document_start` 교체, 실제 마우스 제스처, 드래그)는 사용자가 실제 Safari 에서 확인한다.
+- MCP 는 (a) 치지직 페이지 DOM·네트워크·내부 API 확인, (b) 상황실 로직 주입 검증에 쓴다. (b)는 스킬의 `make-bundle.py` 로 shim+코드 번들을 만들어 `evaluate_javascript` 에 붙여 넣는다. MCP 의 `page_interactions` 클릭은 우리 리스너에 잘 닿지 않으니 로직은 `element.click()` 으로 확인한다.
+- 앱 내 Chromium 브라우저는 Safari 정책(ITP·자동재생)과 달라 검증에 쓰지 않는다.
 
 ## 아키텍처: 3개의 JS 실행 컨텍스트
 
@@ -49,15 +54,26 @@ background에 위임하는 공용 서비스를 추가할 때는 메시지 이름
 
 ### Safari 특유의 패턴 (함부로 "고치지" 말 것)
 
-- **storage 변경은 background를 거쳐 relay된다.** Safari에서는 content script의 `storage.onChanged`가 신뢰성이 없어, `background.js`가 `storage.onChanged`를 듣고 활성 탭 content script로 `storageChanged` 메시지를 전달한다. content/page 스크립트에서 `storage.onChanged`에 직접 의존하지 말 것.
+- **storage 변경은 background를 거쳐 relay된다.** Safari에서는 content script의 `storage.onChanged`가 신뢰성이 없어, `background.js`가 `storage.onChanged`를 듣고 **열린 모든 탭**의 content script로 `storageChanged` 메시지를 전달한다(비활성 탭에서도 토글이 즉시 반영되게). content/page 스크립트에서 `storage.onChanged`에 직접 의존하지 말 것.
 - **프레임 캡처는 `background.js`의 컨텍스트 메뉴 핸들러에서 `scripting.executeScript` + `world: "MAIN"`으로 실행한다.** content script를 거치지 않는다. 이렇게 해야 클립보드 접근에 필요한 사용자 제스처가 유지되고, 간헐적인 `sendMessage` 실패를 피할 수 있다. 안내 문구는 `page-script.js`의 `_wtFrameMsg(key)` 한 곳에서 관리하고 복사·다운로드 경로가 키로 참조한다.
-- **상황실은 치지직 도메인 안(`/wt-room`)에서 산다.** `room.js`가 `document_start`에서 `window.stop()`으로 치지직 SPA 로딩을 끊고 문서를 통째로 우리 UI로 바꾼다. 각 채널은 **같은 출처 iframe**(`/live/<id>`)이며 부모가 `contentDocument`에 플레이어만 남기는 CSS(`#live_player_layout` 훅)를 주입한다. 확장 내부 페이지에서 교차 출처 iframe으로 띄우면 Safari ITP가 쿠키를 막아 로그인이 끊기므로(2026-09 STP 검증) 그 방식으로 "고치지" 말 것. 자동 재생은 음소거에서만 되므로 소리는 사용자 클릭 안에서만 켠다. 소리는 여러 타일에서 동시에 켜질 수 있고 상태의 원천은 각 iframe 의 `video.muted` 다(`volumechange` 를 capture 로 구독해 플레이어 자체 버튼 조작도 따라간다). **타일은 만들어진 뒤 DOM 위치를 옮기지 않는다** — iframe 을 떼었다 붙이면 재로드되므로 순서는 CSS `order` 로만 바꾼다(추가·삭제·스왑 공통). 집중 보기(`state.focus`)에서만 채팅 서랍(`.wt-chatdock`)이 뜨며 치지직 팝업 채팅 `/live/<id>/chat`을 같은 출처 iframe 으로 담는다(CSS `:hover` 로 슬라이드, 위치는 `roomChatSide`). 재생 실패는 5초마다 `video.error` 와 플레이어 문구로 감지해 자동 재시도(10분 3회) 후 수동 버튼을 남긴다. 치지직 내부 API 응답 형태는 바뀔 수 있어 `fetchFollowings`는 `channelId`를 가진 객체를 넓게 찾는다.
+- **상황실은 치지직 도메인 안(`/wt-room`)에서 산다.** 확장 내부 페이지에서 교차 출처 iframe으로 띄우면 Safari ITP가 쿠키를 막아 로그인이 끊기므로(2026-09 STP 검증) 그 방식으로 "고치지" 말 것. 자세한 설계는 아래 절.
+
+### 상황실(`room.js`) 설계 메모
+
+- **문서 교체**: `document_start` 에서 `window.stop()` 으로 치지직 SPA 로딩을 끊고 `documentElement.innerHTML = ""` 로 비운다. **이때 프래그먼트 파서가 빈 `<head>`/`<body>` 를 자동으로 만든다.** 새로 만들어 append 하면 둘씩 생기고 `document.body` 는 빈 쪽을 가리켜 화면이 검게 된다(실제로 겪은 회귀). 파서가 만든 head/body 를 채워 쓴다.
+- **타일**: 채널마다 같은 출처 iframe(`/live/<id>`). 부모가 `contentDocument` 에 플레이어만 남기는 CSS(`#live_player_layout` 훅, 조상의 transform/position 해제)를 주입한다. **타일은 만들어진 뒤 DOM 위치를 옮기지 않는다** — iframe 을 떼었다 붙이면 재로드되므로 순서는 CSS `order` 로만(추가·삭제·스왑 공통).
+- **소리**: 의도는 `state.sounds`(여러 개), 실제는 각 iframe 의 `video.muted`(`volumechange` capture 구독으로 플레이어 자체 버튼 조작도 따라감). 우리 UI 에는 소리 버튼이 없고 테두리 발광으로만 표시한다. 자동 재생은 음소거에서만 되므로 `navigator.userActivation.hasBeenActive` 가 있을 때만 풀고, 없으면 `sound-pending` 으로 두었다가 첫 `pointerdown` 에 적용한다. 우리가 되돌린 음소거는 `tile.autoMuting` 으로 표시해 사용자 조작으로 치지 않는다. **음소거 타일에 `play()` 를 부르지 말 것**(플레이어의 광고/준비 단계가 멈춘다).
+- **종료된 방송**: 60초 폴링(`/service/v2/channels/<id>/live-detail`, 로그인 불필요)에서 `open === false` 면 격자에서 빼고 iframe 을 내린 뒤 하단 선반(`.wt-shelf`)에 칩으로 둔다. 다시 켜지면 원래 순서 자리에 타일을 새로 만든다. 팔로우 목록에서 추가할 때는 목록이 준 켜짐/종료를 먼저 반영하고 그린다(격자에 잠깐 떴다가 밀려나지 않게).
+- **집중 보기**(`state.focus`): 타일 더블클릭(플레이어의 더블클릭 전체화면은 capture 에서 차단) 또는 상단 바 확대 버튼. 그 타일이 `.wt-body` 를 `position:absolute` 로 채우고 소리는 그 채널만(들어갈 때 `soundBackup`, 나올 때 복원). 나머지 타일은 자리에 둔 채 `visibility:hidden`(재생 유지). Esc/←/→/숫자 키 지원.
+- **채팅 서랍**(`.wt-chatdock`, 집중 보기 전용): 치지직 팝업 채팅 `/live/<id>/chat` 을 같은 출처 iframe 으로 담는다. 열림/닫힘은 CSS `:hover` 가 아니라 명시적 `open` 클래스다 — 서랍에 `pointerenter` 하면 열고, 서랍에서 `pointerleave` 하면 120ms 뒤 닫되 상단 바·선반 `pointerenter` 가 오면 취소, 채팅 입력 중(`:focus-within`)엔 유지. iframe 사이(채팅→영상) 이동은 부모의 `pointerleave` 로만 안정적으로 잡힌다. 손잡이는 반투명 알약. 위치는 `roomChatSide`.
+- **재생 실패**: 5초마다 `video.error` 와 플레이어 문구("재생이 실패")를 감지해 오버레이를 덮고 자동 재시도(10분 3회) 후 수동 버튼을 남긴다.
+- **치지직 내부 API**: 응답 형태가 바뀔 수 있어 `fetchFollowings` 는 `channelId` 를 가진 객체를 넓게 찾는다. 팔로우 목록(`/service/v1/channels/followings/live`, `/followings`)은 로그인 필요.
 - **눌러서 빨리감기는 플랫폼에 같은 기능이 있으면 개입하지 않는다.** `speed.js`의 `NATIVE_HOSTS`(현재 YouTube)에서는 비활성이다. 새 사이트가 자체 길게-누르기 배속을 제공하면 여기에 추가한다.
 
 ## 컨벤션
 
 - **로깅**: 격리 세계에서는 `WT.log(tag, ...)`를 쓴다(디버그 플래그 중앙 관리). MAIN 세계(`page-script.js`)는 격리 세계와 분리되어 있어 자체 플래그 `window._wtDebug`로 `[WT]` 로그를 낸다.
-- **설정 추가**: 새 토글은 `room.js`의 `SETTINGS` 표 + `_locales`(ko 먼저, en) + 해당 기능 모듈의 `WT.watch`/`WT.load` 3곳을 함께 수정한다. 팝업은 없다.
+- **설정 추가**: 새 토글은 `room.js`의 `SETTINGS` 표 + `_locales`(ko 먼저, en) + 해당 기능 모듈의 `WT.watch`/`WT.load` 3곳을 함께 수정한다. 토글이 아닌 설정(예: 채팅 위치)은 `buildSettingsDrawer` 에 행을 직접 만들고 `render()` 에서 현재 값을 표시한다. 세그먼트 버튼 갱신 시 선택자 범위를 한정할 것(`.wt-seg-btn` 전체를 잡으면 다른 세그먼트를 덮어쓴다 — 겪은 버그). 팝업은 없다.
 - **Git/브랜치**: 브랜치 이름은 기능 중심으로 짓고, 이름에 `phase`라는 단어를 쓰지 않는다.
 
 ## 범위 메모
