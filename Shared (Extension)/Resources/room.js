@@ -122,7 +122,7 @@
         const backdrop = el("div", { class: "wt-backdrop", id: "wt-backdrop", hidden: "", onclick: closeOverlays });
         // 채팅 서랍(집중 보기 전용): 치지직 팝업 채팅(/live/<id>/chat)을 담고, 가장자리에 숨어 있다가
         // 마우스를 가져가면 안쪽으로 나온다. 위치(좌/우)는 설정에서 바꾼다.
-        const chat = el("div", { class: "wt-chatdock", id: "wt-chatdock", hidden: "" }, [
+        const chat = el("div", { class: "wt-chatdock", id: "wt-chatdock", hidden: "", onpointerenter: openChatDock }, [
             el("div", { class: "wt-chatdock-tab", title: t("roomChatTab") }, [chatIcon()]),
             el("iframe", { id: "wt-chat-frame", title: t("roomChatTab"), src: "about:blank" }),
         ]);
@@ -151,6 +151,10 @@
         svg.innerHTML = '<path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linejoin="round"/>';
         return svg;
     }
+    // 채팅 서랍: 서랍(손잡이·채팅)에 마우스가 들어오면 열리고, 영상 영역에 들어가면 닫힌다.
+    // (서랍 밖이라도 상단 바·선반 위에서는 열린 채로 둔다. 채팅 입력 중이면 CSS :focus-within 이 열어 둔다)
+    function openChatDock() { document.getElementById("wt-chatdock")?.classList.add("open"); }
+    function closeChatDock() { document.getElementById("wt-chatdock")?.classList.remove("open"); }
     function focusIcon() {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "13"); svg.setAttribute("height", "13");
@@ -284,6 +288,7 @@
         const chatUrl = focused ? `${location.origin}/live/${focused.id}/chat` : "about:blank";
         if (frame.src !== chatUrl) frame.src = chatUrl;   // 채널이 바뀔 때만 다시 불러온다
         dock.hidden = !focused;
+        if (!focused) closeChatDock();
         // 열 수 세그먼트만 (채팅 위치 세그먼트도 같은 .wt-seg-btn 을 쓰므로 범위를 한정한다)
         for (const b of document.querySelectorAll(".wt-layout .wt-seg-btn")) {
             b.setAttribute("aria-pressed", String(b.dataset.cols === String(state.cols)));
@@ -383,6 +388,7 @@
             iframe,
             el("div", { class: "wt-tile-top", draggable: "true", title: t("roomDragHint"),
                 ondragstart: (e) => onDragStart(ch.id, e), ondragend: onDragEnd,
+                onpointerenter: () => { if (state.focus === ch.id) closeChatDock(); },
                 onclick: (e) => { if (!e.target.closest("button")) toggleFocus(ch.id); } }, [
                 el("span", { class: "wt-live", text: "LIVE" }),
                 el("span", { class: "wt-name", text: ch.name || ch.id }),
@@ -430,6 +436,7 @@
             toggleFocus(id);
         }, true);
         doc.addEventListener("keydown", (e) => { if (e.key === "Escape" && state.focus) { e.preventDefault(); exitFocus(); } }, true);
+        doc.addEventListener("pointerover", () => { if (state.focus === id) closeChatDock(); }, { capture: true, passive: true });
         applySound(id);
         WT.log("room", "타일 준비", id);
     }
