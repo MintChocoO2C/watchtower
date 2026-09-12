@@ -4,7 +4,7 @@
 
     "name": "__MSG_extension_name__",
     "description": "__MSG_extension_description__",
-    "version": "1.1",
+    "version": "1.2",
 
     "icons": {
         "48": "images/icon-48.png",
@@ -23,7 +23,14 @@
         {
             "js": [ "wt-core.js", "content.js", "speed.js" ],
             "matches": [ "<all_urls>" ],
+            "exclude_matches": [ "https://chzzk.naver.com/wt-room*" ],
             "run_at": "document_idle"
+        },
+        {
+            "js": [ "wt-core.js", "room.js" ],
+            "css": [ "room.css" ],
+            "matches": [ "https://chzzk.naver.com/wt-room*" ],
+            "run_at": "document_start"
         },
         {
             "js": [ "page-script.js" ],
@@ -34,9 +41,10 @@
     ],
 
     "action": {
-        "default_popup": "popup.html",
+        "default_title": "__MSG_roomOpen__",
         "default_icon": "images/toolbar-icon.svg"
     },
 
-    "permissions": [ "activeTab", "storage", "contextMenus", "clipboardWrite", "scripting" ]
+    "permissions": [ "activeTab", "storage", "contextMenus", "clipboardWrite", "scripting" ],
+    "host_permissions": [ "https://chzzk.naver.com/*" ]
 }

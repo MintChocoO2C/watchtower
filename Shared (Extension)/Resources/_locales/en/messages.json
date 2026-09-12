@@ -4,8 +4,8 @@
         "description": "The display name for the extension."
     },
     "extension_description": {
-        "message": "Safari Extension",
-        "description": "Short tagline shown under the title in the popup header."
+        "message": "Chzzk situation room and video watching helpers",
+        "description": "Short tagline for the extension (Safari extension list)."
     },
     "sectionVideo": {
         "message": "Video"
@@ -32,12 +32,6 @@
         "message": "Hold on a video for 2× speed",
         "description": "Description for press-to-fast-forward feature"
     },
-    "pressFastForwardOn": {
-        "message": "Press to Fast-Forward ON"
-    },
-    "pressFastForwardOff": {
-        "message": "Press to Fast-Forward OFF"
-    },
     "ytMiniplayerLabel": {
         "message": "YouTube Miniplayer",
         "description": "Feature label for YouTube miniplayer"
@@ -54,34 +48,6 @@
         "message": "Remove Shorts from home feed",
         "description": "Description for Hide Shorts feature"
     },
-    "autoPipOn": {
-        "message": "Auto PiP ON"
-    },
-    "autoPipOff": {
-        "message": "Auto PiP OFF"
-    },
-    "ytMiniplayerOn": {
-        "message": "YouTube Miniplayer ON"
-    },
-    "ytMiniplayerOff": {
-        "message": "YouTube Miniplayer OFF"
-    },
-    "hideShortsOn": {
-        "message": "Hide Shorts ON"
-    },
-    "hideShortsOff": {
-        "message": "Hide Shorts OFF"
-    },
-    "videoPlaying": {
-        "message": "Video detected ($count$ playing)",
-        "description": "Status showing number of playing videos",
-        "placeholders": {
-            "count": { "content": "$1", "example": "2" }
-        }
-    },
-    "videoPaused": {
-        "message": "Video detected (paused)"
-    },
     "copyVideoFrame": {
         "message": "Copy Video Frame",
         "description": "Context menu item to copy the current video frame to clipboard"
@@ -96,10 +62,103 @@
     "debugDesc": {
         "message": "Print [WT] logs to console"
     },
-    "debugOn": {
-        "message": "Debug ON"
+    "roomOpen": {
+        "message": "Open Situation Room"
     },
-    "debugOff": {
-        "message": "Debug OFF"
+    "roomTitle": {
+        "message": "Situation Room"
+    },
+    "roomCols": {
+        "message": " cols"
+    },
+    "roomAddFollow": {
+        "message": "Add from follows"
+    },
+    "roomAddUrl": {
+        "message": "Add by URL"
+    },
+    "roomAddUrlPrompt": {
+        "message": "Paste a Chzzk live or channel URL"
+    },
+    "roomBadUrl": {
+        "message": "That is not a Chzzk channel URL"
+    },
+    "roomMax": {
+        "message": "You can add up to 16 channels"
+    },
+    "roomSettings": {
+        "message": "Settings"
+    },
+    "roomClose": {
+        "message": "Close"
+    },
+    "roomRemove": {
+        "message": "Remove"
+    },
+    "roomOffline": {
+        "message": "Offline"
+    },
+    "roomEmpty": {
+        "message": "Use ‘Add from follows’ above to add channels"
+    },
+    "roomFollowEmpty": {
+        "message": "You are not following any channels"
+    },
+    "roomLoginNeeded": {
+        "message": "Sign in to Chzzk to see your follows"
+    },
+    "roomLayout": {
+        "message": "Layout"
+    },
+    "roomColsAuto": {
+        "message": "Auto"
+    },
+    "roomFit": {
+        "message": "Fit to screen"
+    },
+    "roomDragHint": {
+        "message": "Drag onto another stream to swap places"
+    },
+    "roomPlaybackFailed": {
+        "message": "Playback failed"
+    },
+    "roomRetry": {
+        "message": "Retry"
+    },
+    "roomRetrying": {
+        "message": "Retrying automatically in a moment"
+    },
+    "roomRetryGiveUp": {
+        "message": "Stopped auto-retrying. Press the button to try again"
+    },
+    "roomOfflineShelf": {
+        "message": "Offline — returns automatically when live again"
+    },
+    "roomFocus": {
+        "message": "View only this stream (double-click)"
+    },
+    "roomBackToGrid": {
+        "message": "Grid"
+    },
+    "roomFocusHint": {
+        "message": "Double-click or Esc to go back · ←/→ next stream · number keys jump"
+    },
+    "roomChatTab": {
+        "message": "Chat"
+    },
+    "roomChatSide": {
+        "message": "Chat side"
+    },
+    "roomChatSideDesc": {
+        "message": "Which edge the chat drawer slides in from in focus view"
+    },
+    "roomChatLeft": {
+        "message": "Left"
+    },
+    "roomChatRight": {
+        "message": "Right"
+    },
+    "roomCurrent": {
+        "message": "Now"
     }
 }

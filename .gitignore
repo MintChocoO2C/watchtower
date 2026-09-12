@@ -1,8 +1,9 @@
 # macOS
 .DS_Store
 
-# Claude Code (worktrees, session state)
-.claude/
+# Claude Code (worktrees, session state) — 단, 프로젝트 스킬(.claude/skills)은 저장소에 포함
+.claude/*
+!.claude/skills/
 
 # Xcode
 xcuserdata/

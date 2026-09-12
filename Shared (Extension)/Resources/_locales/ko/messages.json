@@ -4,8 +4,8 @@
         "description": "The display name for the extension."
     },
     "extension_description": {
-        "message": "Safari 확장 프로그램",
-        "description": "Short tagline shown under the title in the popup header."
+        "message": "치지직 상황실과 영상 시청 편의 기능",
+        "description": "Short tagline for the extension (Safari extension list)."
     },
     "sectionVideo": {
         "message": "영상"
@@ -32,12 +32,6 @@
         "message": "영상을 길게 누르면 2배속",
         "description": "Description for press-to-fast-forward feature"
     },
-    "pressFastForwardOn": {
-        "message": "눌러서 빨리 감기 ON"
-    },
-    "pressFastForwardOff": {
-        "message": "눌러서 빨리 감기 OFF"
-    },
     "ytMiniplayerLabel": {
         "message": "YouTube 미니플레이어",
         "description": "Feature label for YouTube miniplayer"
@@ -54,34 +48,6 @@
         "message": "홈 피드 Shorts 섹션 제거",
         "description": "Description for Hide Shorts feature"
     },
-    "autoPipOn": {
-        "message": "Auto PiP ON"
-    },
-    "autoPipOff": {
-        "message": "Auto PiP OFF"
-    },
-    "ytMiniplayerOn": {
-        "message": "YouTube 미니플레이어 ON"
-    },
-    "ytMiniplayerOff": {
-        "message": "YouTube 미니플레이어 OFF"
-    },
-    "hideShortsOn": {
-        "message": "Shorts 숨기기 ON"
-    },
-    "hideShortsOff": {
-        "message": "Shorts 숨기기 OFF"
-    },
-    "videoPlaying": {
-        "message": "비디오 감지 ($count$개 재생 중)",
-        "description": "Status showing number of playing videos",
-        "placeholders": {
-            "count": { "content": "$1", "example": "2" }
-        }
-    },
-    "videoPaused": {
-        "message": "비디오 감지 (일시정지)"
-    },
     "copyVideoFrame": {
         "message": "동영상 프레임 복사",
         "description": "Context menu item to copy the current video frame to clipboard"
@@ -96,10 +62,103 @@
     "debugDesc": {
         "message": "콘솔에 [WT] 로그 출력"
     },
-    "debugOn": {
-        "message": "디버그 ON"
+    "roomOpen": {
+        "message": "상황실 열기"
     },
-    "debugOff": {
-        "message": "디버그 OFF"
+    "roomTitle": {
+        "message": "상황실"
+    },
+    "roomCols": {
+        "message": "열"
+    },
+    "roomAddFollow": {
+        "message": "팔로우에서 추가"
+    },
+    "roomAddUrl": {
+        "message": "URL로 추가"
+    },
+    "roomAddUrlPrompt": {
+        "message": "치지직 라이브 또는 채널 URL을 붙여넣으세요"
+    },
+    "roomBadUrl": {
+        "message": "치지직 채널 URL이 아닙니다"
+    },
+    "roomMax": {
+        "message": "채널은 최대 16개까지 추가할 수 있습니다"
+    },
+    "roomSettings": {
+        "message": "설정"
+    },
+    "roomClose": {
+        "message": "닫기"
+    },
+    "roomRemove": {
+        "message": "제거"
+    },
+    "roomOffline": {
+        "message": "방송 종료"
+    },
+    "roomEmpty": {
+        "message": "위의 ‘팔로우에서 추가’로 채널을 넣어 보세요"
+    },
+    "roomFollowEmpty": {
+        "message": "팔로우한 채널이 없습니다"
+    },
+    "roomLoginNeeded": {
+        "message": "팔로우 목록을 보려면 치지직에 로그인하세요"
+    },
+    "roomLayout": {
+        "message": "배치"
+    },
+    "roomColsAuto": {
+        "message": "자동"
+    },
+    "roomFit": {
+        "message": "화면에 맞춤"
+    },
+    "roomDragHint": {
+        "message": "끌어서 다른 방송과 자리 바꾸기"
+    },
+    "roomPlaybackFailed": {
+        "message": "재생에 실패했습니다"
+    },
+    "roomRetry": {
+        "message": "다시 시도"
+    },
+    "roomRetrying": {
+        "message": "잠시 후 자동으로 다시 시도합니다"
+    },
+    "roomRetryGiveUp": {
+        "message": "자동 재시도를 멈췄습니다. 버튼을 눌러 다시 시도하세요"
+    },
+    "roomOfflineShelf": {
+        "message": "방송 종료 — 다시 켜지면 자동으로 돌아옵니다"
+    },
+    "roomFocus": {
+        "message": "이 방송만 크게 보기 (더블클릭)"
+    },
+    "roomBackToGrid": {
+        "message": "격자로"
+    },
+    "roomFocusHint": {
+        "message": "더블클릭 또는 Esc로 돌아가기 · ←/→ 다음 방송 · 숫자 키로 바로 가기"
+    },
+    "roomChatTab": {
+        "message": "채팅"
+    },
+    "roomChatSide": {
+        "message": "채팅 위치"
+    },
+    "roomChatSideDesc": {
+        "message": "집중 보기에서 채팅 서랍이 나오는 쪽"
+    },
+    "roomChatLeft": {
+        "message": "왼쪽"
+    },
+    "roomChatRight": {
+        "message": "오른쪽"
+    },
+    "roomCurrent": {
+        "message": "현재"
     }
 }
