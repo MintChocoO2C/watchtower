@@ -10,6 +10,9 @@
     "sectionVideo": {
         "message": "영상"
     },
+    "sectionChzzk": {
+        "message": "치지직"
+    },
     "sectionYouTube": {
         "message": "YouTube"
     },
@@ -31,6 +34,14 @@
     "pressFastForwardDesc": {
         "message": "영상을 길게 누르면 2배속",
         "description": "Description for press-to-fast-forward feature"
+    },
+    "adSkipLabel": {
+        "message": "광고 자동 건너뛰기",
+        "description": "Feature label for auto-skipping Chzzk ads"
+    },
+    "adSkipDesc": {
+        "message": "광고의 SKIP 버튼이 나오면 바로 누름",
+        "description": "Description for the ad auto-skip feature"
     },
     "ytMiniplayerLabel": {
         "message": "YouTube 미니플레이어",
@@ -139,6 +150,12 @@
     },
     "roomBackToGrid": {
         "message": "격자로"
+    },
+    "roomFocusMode": {
+        "message": "집중 보기"
+    },
+    "roomFocusToastHint": {
+        "message": "Esc 격자로 · ←/→ 다른 방송 · 숫자 키로 바로 가기"
     },
     "roomFocusHint": {
         "message": "더블클릭 또는 Esc로 돌아가기 · ←/→ 다음 방송 · 숫자 키로 바로 가기"

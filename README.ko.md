@@ -13,6 +13,7 @@ Watchtower는 치지직 여러 채널을 한 화면에서 보는 **상황실**�
 - **YouTube 미니플레이어** — `/watch` 페이지에서 YouTube 로고를 클릭하면 미니플레이어로 전환되고, 미니플레이어를 다시 클릭하면 전체 플레이어로 복귀합니다.
 - **YouTube Shorts 숨기기** — 홈 피드의 Shorts 섹션과 사이드바 Shorts 메뉴를 제거합니다.
 - **동영상 프레임 캡처** — `<video>` 위에서 우클릭으로 현재 프레임을 PNG로 복사하거나 저장합니다.
+- **치지직 광고 자동 건너뛰기** — 광고의 SKIP 버튼이 누를 수 있게 되는 순간 대신 눌러 줍니다. 광고를 차단하지는 않습니다. (상황실 타일 안에서도 동작)
 - **눌러서 빨리감기** — 영상을 길게 누르고 있는 동안 2배속으로 재생하고, 떼면 원래 속도로 복원합니다. (치지직 VOD 등 범용 `<video>`. YouTube는 자체 기능이 있어 제외)
 
 ## 설치
@@ -64,7 +65,7 @@ macOS 전용입니다 (iOS 미지원).
 
 확장은 3개 실행 컨텍스트 사용:
 - 서비스 워커 (`background.js`) — 툴바 아이콘(상황실 열기), 컨텍스트 메뉴, 스토리지 relay 담당
-- isolated content scripts (`wt-core.js` → `content.js` → `speed.js`; 상황실 경로에서는 `wt-core.js` → `room.js`) — DOM 접근 가능; 페이지 전역 변수 접근 불가. `wt-core.js`가 가장 먼저 로드되어 공용 서비스(`window.WT`: 로깅·설정 구독)를 노출하고 나머지 기능이 이를 공유
+- isolated content scripts (`wt-core.js` → `content.js` → `speed.js` → `adskip.js`; 상황실 경로에서는 `wt-core.js` → `adskip.js` → `room.js`) — DOM 접근 가능; 페이지 전역 변수 접근 불가. `wt-core.js`가 가장 먼저 로드되어 공용 서비스(`window.WT`: 로깅·설정 구독)를 노출하고 나머지 기능이 이를 공유
 - MAIN-world script (`page-script.js`) — 페이지의 JS 컨텍스트에서 실행, 페이지 전역 API 접근
 
 Safari의 `storage.onChanged`가 content script에서 신뢰성이 없어 background 스크립트가 변경 사항을 relay합니다.

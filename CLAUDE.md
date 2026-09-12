@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## 프로젝트 개요
 
-Watchtower는 Xcode로 macOS 앱으로 패키징되는 (macOS 전용, iOS 미지원) **Safari 웹 확장**(Manifest V3)이다. 치지직 여러 채널을 한 화면 격자로 보는 **상황실**과 영상 시청 편의 기능(자동 PiP, 유튜브 미니플레이어, Shorts 숨김, 동영상 프레임 캡처, 눌러서 빨리감기)을 제공한다. 설정 팝업은 없고, 툴바 아이콘은 상황실을 연다. 기능 토글은 상황실 안 설정 서랍에 있다. 실제 개발은 대부분 `Shared (Extension)/Resources/` 아래 JavaScript에서 이루어지며, Swift 호스트 앱은 거의 Apple 템플릿 그대로다.
+Watchtower는 Xcode로 macOS 앱으로 패키징되는 (macOS 전용, iOS 미지원) **Safari 웹 확장**(Manifest V3)이다. 치지직 여러 채널을 한 화면 격자로 보는 **상황실**과 영상 시청 편의 기능(자동 PiP, 유튜브 미니플레이어, Shorts 숨김, 동영상 프레임 캡처, 눌러서 빨리감기)을 제공하며, 치지직 광고의 SKIP 버튼을 자동으로 누른다. 설정 팝업은 없고, 툴바 아이콘은 상황실을 연다. 기능 토글은 상황실 안 설정 서랍에 있다. 실제 개발은 대부분 `Shared (Extension)/Resources/` 아래 JavaScript에서 이루어지며, Swift 호스트 앱은 거의 Apple 템플릿 그대로다.
 
 ## 언어 정책 (한글 우선)
 
@@ -37,7 +37,7 @@ Watchtower는 Xcode로 macOS 앱으로 패키징되는 (macOS 전용, iOS 미지
 확장은 능력이 서로 다른 세 컨텍스트로 작업을 나눈다. 어떤 능력이 어느 컨텍스트에 속하는지 아는 것이 핵심이다 — 엉뚱한 컨텍스트에 코드를 두면 조용히 실패한다.
 
 - **`background.js`** (서비스 워커, `type: module`) — 권한을 가진 허브. 툴바 아이콘 클릭(`action.onClicked` → 상황실 탭 열기/포커스), 컨텍스트 메뉴, storage relay를 담당한다. 권한 API가 필요한 작업은 content script가 직접 호출할 수 없으므로 **background에 메시지를 보내야** 하며, 실제 작업은 background가 수행한다.
-- **격리된 세계 content scripts** (`document_idle`) — DOM은 다룰 수 있지만 **페이지 전역(page의 `window`, 유튜브 JS 등)에는 접근할 수 없다.** `manifest.json`의 로드 순서대로 실행되며 **같은 격리 세계 전역(`window`)을 공유**한다: `wt-core.js`(공용 기반, 가장 먼저) → `content.js`(페이지 설정 브리지 + Shorts) → `speed.js`(눌러서 빨리감기). 상황실 경로(`chzzk.naver.com/wt-room`)는 별도 항목으로 `wt-core.js` → `room.js`를 **`document_start`**에 넣고, 일반 항목에서는 `exclude_matches`로 뺀다.
+- **격리된 세계 content scripts** (`document_idle`) — DOM은 다룰 수 있지만 **페이지 전역(page의 `window`, 유튜브 JS 등)에는 접근할 수 없다.** `manifest.json`의 로드 순서대로 실행되며 **같은 격리 세계 전역(`window`)을 공유**한다: `wt-core.js`(공용 기반, 가장 먼저) → `content.js`(페이지 설정 브리지 + Shorts) → `speed.js`(눌러서 빨리감기) → `adskip.js`(치지직 광고 SKIP 자동 클릭). 상황실 경로(`chzzk.naver.com/wt-room`)는 별도 항목으로 `wt-core.js` → `adskip.js` → `room.js`를 **`document_start`**에 넣고, 일반 항목에서는 `exclude_matches`로 뺀다.
 - **`page-script.js`** (MAIN 세계, `document_start`) — 페이지의 JS 컨텍스트에서 실행되어 페이지 전역이나 페이지가 노출하는 API가 필요한 작업을 처리한다.
 
 content(격리)와 page(MAIN) 스크립트는 메시지 패싱이 아니라 **`document`의 `CustomEvent`**(예: `watchtower-settings`, `watchtower-download-frame`)로 통신한다.
@@ -68,6 +68,7 @@ background에 위임하는 공용 서비스를 추가할 때는 메시지 이름
 - **채팅 서랍**(`.wt-chatdock`, 집중 보기 전용): 치지직 팝업 채팅 `/live/<id>/chat` 을 같은 출처 iframe 으로 담는다. 열림/닫힘은 CSS `:hover` 가 아니라 명시적 `open` 클래스다 — 서랍에 `pointerenter` 하면 열고, 서랍에서 `pointerleave` 하면 120ms 뒤 닫되 상단 바·선반 `pointerenter` 가 오면 취소, 채팅 입력 중(`:focus-within`)엔 유지. iframe 사이(채팅→영상) 이동은 부모의 `pointerleave` 로만 안정적으로 잡힌다. 손잡이는 반투명 알약. 위치는 `roomChatSide`.
 - **재생 실패**: 5초마다 `video.error` 와 플레이어 문구("재생이 실패")를 감지해 오버레이를 덮고 자동 재시도(10분 3회) 후 수동 버튼을 남긴다.
 - **치지직 내부 API**: 응답 형태가 바뀔 수 있어 `fetchFollowings` 는 `channelId` 를 가진 객체를 넓게 찾는다. 팔로우 목록(`/service/v1/channels/followings/live`, `/followings`)은 로그인 필요.
+- **광고 자동 건너뛰기(`adskip.js`)는 `button.btn_skip` 에서 `hide` 클래스가 벗겨지는 순간 `click()` 한다.** 광고 DOM(`.skip_area`, `.pzp-pc--adbreak`)은 광고 중에만 존재하고 끝나면 제거된다(2026-09 STP 확인). content script 는 최상위 프레임에서만 돌므로 상황실 타일은 `onTileLoad` 에서 `WT.adSkip.watch(contentDocument)` 로 부모가 등록한다. 설정 기본값이 켜짐인 유일한 토글이라 `SETTINGS` 항목의 `def: true` 로 표현한다.
 - **눌러서 빨리감기는 플랫폼에 같은 기능이 있으면 개입하지 않는다.** `speed.js`의 `NATIVE_HOSTS`(현재 YouTube)에서는 비활성이다. 새 사이트가 자체 길게-누르기 배속을 제공하면 여기에 추가한다.
 
 ## 컨벤션
