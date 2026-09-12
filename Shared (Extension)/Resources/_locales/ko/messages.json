@@ -142,5 +142,20 @@
     },
     "roomFocusHint": {
         "message": "더블클릭 또는 Esc로 돌아가기 · ←/→ 다음 방송 · 숫자 키로 바로 가기"
+    },
+    "roomChatTab": {
+        "message": "채팅"
+    },
+    "roomChatSide": {
+        "message": "채팅 위치"
+    },
+    "roomChatSideDesc": {
+        "message": "집중 보기에서 채팅 서랍이 나오는 쪽"
+    },
+    "roomChatLeft": {
+        "message": "왼쪽"
+    },
+    "roomChatRight": {
+        "message": "오른쪽"
     }
 }

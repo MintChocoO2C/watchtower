@@ -44,6 +44,7 @@ Watch several Chzzk channels on one screen without switching tabs.
 - **Swap**: hover a tile, grab its top bar, and drop it onto another tile to swap the two streams. Playback is not interrupted.
 - **Sound**: use the speaker button of the Chzzk player inside each tile. Several channels can play sound at once, and tiles with sound get a glowing border. Safari only allows unmuting on a click.
 - **Focus view**: double-click a tile (or press the expand button in its hover bar) to make that stream fill the room with sound on that channel only. Double-click again, press Esc, or hit `← Grid` at the top to return to the previous grid and sound state. While focused, `←`/`→` move to the neighbouring stream; in the grid, number keys 1–9 focus the n-th stream.
+- **Chat**: in focus view a chat handle sits at the screen edge. Hover it and the chat slides in; move away and it hides again. It embeds Chzzk's pop-out chat, so you can type when signed in. Pick the edge (left/right) in the settings drawer.
 - **Live status**: checked every minute. Offline channels leave the grid and collect as small chips on a shelf at the bottom (removable there); when they go live again they return to their original spot automatically.
 - **Playback failure**: when the player fails, the room covers it and retries automatically (up to 3 times in 10 minutes), then leaves a `Retry` button.
 - **Theme**: follows the system/browser light or dark setting.

@@ -55,6 +55,7 @@
         status: {},     // channelId -> { open, title, viewers }
         errors: {},     // channelId -> { count, last }  재생 실패 자동 재시도 기록
         focus: null,    // 집중 보기 중인 channelId (그 타일만 크게, 나머지는 음소거)
+        chatSide: "right", // 집중 보기 채팅 서랍 위치: "left" | "right"
         soundBackup: null, // 집중 보기 들어가기 전 소리 상태 (나올 때 복원)
         cols: "auto",   // "auto" | 1..4
         fit: false,     // true면 스크롤 없이 모든 타일이 한 화면에 들어오도록 크기를 줄인다
@@ -119,8 +120,12 @@
         ]);
         // 패널/서랍 바깥을 누르면 닫히게 하는 투명 배경
         const backdrop = el("div", { class: "wt-backdrop", id: "wt-backdrop", hidden: "", onclick: closeOverlays });
-        // 채팅 자리 — 지금은 비워 둔다 (나중에 소리 채널의 채팅을 여기에 붙인다)
-        const chat = el("aside", { class: "wt-chat", id: "wt-chat", hidden: "" });
+        // 채팅 서랍(집중 보기 전용): 치지직 팝업 채팅(/live/<id>/chat)을 담고, 가장자리에 숨어 있다가
+        // 마우스를 가져가면 안쪽으로 나온다. 위치(좌/우)는 설정에서 바꾼다.
+        const chat = el("div", { class: "wt-chatdock", id: "wt-chatdock", hidden: "" }, [
+            el("div", { class: "wt-chatdock-tab", title: t("roomChatTab") }, [chatIcon()]),
+            el("iframe", { id: "wt-chat-frame", title: t("roomChatTab"), src: "about:blank" }),
+        ]);
         const drawer = buildSettingsDrawer();
         const panel = el("div", { class: "wt-panel", id: "wt-follow", hidden: "" });
         body.append(bar, el("div", { class: "wt-body" }, [scroll, chat]), shelf, backdrop, drawer, panel);
@@ -140,6 +145,12 @@
     }
 
 
+    function chatIcon() {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "13"); svg.setAttribute("height", "13");
+        svg.innerHTML = '<path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linejoin="round"/>';
+        return svg;
+    }
     function focusIcon() {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "13"); svg.setAttribute("height", "13");
@@ -161,6 +172,21 @@
                 el("button", { class: "wt-btn", type: "button", onclick: toggleSettings, text: t("roomClose") }),
             ]),
         ]);
+        // 상황실 전용 설정: 채팅 서랍 위치
+        drawer.appendChild(el("div", { class: "wt-set-head", text: t("roomTitle") }));
+        const sideSeg = el("div", { class: "wt-seg", id: "wt-chat-side", role: "group", "aria-label": t("roomChatSide") });
+        for (const side of ["left", "right"]) {
+            sideSeg.appendChild(el("button", { class: "wt-seg-btn", type: "button", "data-side": side,
+                text: t(side === "left" ? "roomChatLeft" : "roomChatRight"),
+                onclick: () => { state.chatSide = side; browser.storage.local.set({ roomChatSide: side }).catch(() => {}); render(); } }));
+        }
+        drawer.appendChild(el("div", { class: "wt-set-row" }, [
+            el("span", { class: "wt-set-text" }, [
+                el("span", { class: "wt-set-label", text: t("roomChatSide") }),
+                el("span", { class: "wt-set-desc", text: t("roomChatSideDesc") }),
+            ]),
+            sideSeg,
+        ]));
         for (const group of SETTINGS) {
             drawer.appendChild(el("div", { class: "wt-set-head", text: t(group.section) }));
             for (const item of group.items) {
@@ -207,7 +233,8 @@
 
     // --- 채널 목록 저장/복원 ---
     async function loadState() {
-        const r = await WT.load(["roomChannels", "roomSound", "roomLayout"]);
+        const r = await WT.load(["roomChannels", "roomSound", "roomLayout", "roomChatSide"]);
+        state.chatSide = r.roomChatSide === "left" ? "left" : "right";
         state.channels = Array.isArray(r.roomChannels) ? r.roomChannels.slice(0, MAX_CHANNELS) : [];
         // roomSound: 예전(단일 id 문자열)과 현재(배열) 둘 다 받아들인다
         const snd = r.roomSound;
@@ -248,6 +275,13 @@
             ? `${focused.name || focused.id.slice(0, 8)} — ${t("roomFocusHint")}`
             : (state.channels.length ? `${n}/${state.channels.length} · ${cols}${t("roomCols")}` : "");
         document.body.classList.toggle("focus-mode", state.focus !== null);
+        const dock = document.getElementById("wt-chatdock");
+        dock.dataset.side = state.chatSide;
+        for (const b of document.querySelectorAll("#wt-chat-side .wt-seg-btn")) b.setAttribute("aria-pressed", String(b.dataset.side === state.chatSide));
+        const frame = document.getElementById("wt-chat-frame");
+        const chatUrl = focused ? `${location.origin}/live/${focused.id}/chat` : "about:blank";
+        if (frame.src !== chatUrl) frame.src = chatUrl;   // 채널이 바뀔 때만 다시 불러온다
+        dock.hidden = !focused;
         for (const b of document.querySelectorAll(".wt-seg-btn")) {
             b.setAttribute("aria-pressed", String(b.dataset.cols === String(state.cols)));
         }

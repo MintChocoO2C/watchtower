@@ -142,5 +142,20 @@
     },
     "roomFocusHint": {
         "message": "Double-click or Esc to go back · ←/→ next stream · number keys jump"
+    },
+    "roomChatTab": {
+        "message": "Chat"
+    },
+    "roomChatSide": {
+        "message": "Chat side"
+    },
+    "roomChatSideDesc": {
+        "message": "Which edge the chat drawer slides in from in focus view"
+    },
+    "roomChatLeft": {
+        "message": "Left"
+    },
+    "roomChatRight": {
+        "message": "Right"
     }
 }
