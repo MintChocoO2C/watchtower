@@ -157,5 +157,8 @@
     },
     "roomChatRight": {
         "message": "오른쪽"
+    },
+    "roomCurrent": {
+        "message": "현재"
     }
 }

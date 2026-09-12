@@ -183,7 +183,7 @@
         drawer.appendChild(el("div", { class: "wt-set-row" }, [
             el("span", { class: "wt-set-text" }, [
                 el("span", { class: "wt-set-label", text: t("roomChatSide") }),
-                el("span", { class: "wt-set-desc", text: t("roomChatSideDesc") }),
+                el("span", { class: "wt-set-desc", id: "wt-chat-side-desc", text: t("roomChatSideDesc") }),
             ]),
             sideSeg,
         ]));
@@ -278,11 +278,14 @@
         const dock = document.getElementById("wt-chatdock");
         dock.dataset.side = state.chatSide;
         for (const b of document.querySelectorAll("#wt-chat-side .wt-seg-btn")) b.setAttribute("aria-pressed", String(b.dataset.side === state.chatSide));
+        const sideDesc = document.getElementById("wt-chat-side-desc");
+        if (sideDesc) sideDesc.textContent = `${t("roomChatSideDesc")} · ${t("roomCurrent")}: ${t(state.chatSide === "left" ? "roomChatLeft" : "roomChatRight")}`;
         const frame = document.getElementById("wt-chat-frame");
         const chatUrl = focused ? `${location.origin}/live/${focused.id}/chat` : "about:blank";
         if (frame.src !== chatUrl) frame.src = chatUrl;   // 채널이 바뀔 때만 다시 불러온다
         dock.hidden = !focused;
-        for (const b of document.querySelectorAll(".wt-seg-btn")) {
+        // 열 수 세그먼트만 (채팅 위치 세그먼트도 같은 .wt-seg-btn 을 쓰므로 범위를 한정한다)
+        for (const b of document.querySelectorAll(".wt-layout .wt-seg-btn")) {
             b.setAttribute("aria-pressed", String(b.dataset.cols === String(state.cols)));
         }
         document.getElementById("wt-fit").setAttribute("aria-pressed", String(state.fit));
