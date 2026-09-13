@@ -177,5 +177,23 @@
     },
     "roomCurrent": {
         "message": "Now"
+    },
+    "roomLevelerLabel": {
+        "message": "Loudness leveler (experimental)"
+    },
+    "roomLevelerDesc": {
+        "message": "Pull loud streams down toward a target (100% max). Only unmuted streams are sampled from a low-quality rendition now and then; per-channel averages are remembered"
+    },
+    "roomLevelerTarget": {
+        "message": "Target loudness"
+    },
+    "roomLevelerTargetDesc": {
+        "message": "Level to aim for (dBFS). Lower is quieter"
+    },
+    "roomLevelerBadge": {
+        "message": "Measured loudness → correction"
+    },
+    "roomLevelerShort": {
+        "message": "short"
     }
 }
