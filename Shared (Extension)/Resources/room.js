@@ -62,6 +62,8 @@
         soundBackup: null, // 집중 보기 들어가기 전 소리 상태 (나올 때 복원)
         cols: "auto",   // "auto" | 1..4
         fit: false,     // true면 스크롤 없이 모든 타일이 한 화면에 들어오도록 크기를 줄인다
+        leveler: { enabled: false, target: -24 }, // 소리 평준화(PoC): 켬/끔, 기준 음량(dBFS)
+        levelProfiles: {}, // channelId -> { db, n, at }  채널별 평균 음량(저장). 다시 열 때 준비 과정 없이 바로 맞춘다
     };
     const tiles = new Map();  // channelId -> { root, iframe, styled }
     const COL_CHOICES = ["auto", 1, 2, 3, 4];
@@ -206,6 +208,30 @@
             ]),
             sideSeg,
         ]));
+        // 소리 평준화(PoC): 켬/끔 토글과 기준 음량 슬라이더. 값은 storage 에 두고 WT.watch 로 되돌아와 state 에 반영된다.
+        const lvInput = el("input", { type: "checkbox", id: "wt-lv-on" });
+        lvInput.addEventListener("change", () => {
+            state.leveler.enabled = lvInput.checked;
+            applyLevelerSetting();
+            browser.storage.local.set({ roomLevelerEnabled: lvInput.checked }).catch(() => {});
+        });
+        drawer.appendChild(el("label", { class: "wt-set-row" }, [
+            el("span", { class: "wt-set-text" }, [
+                el("span", { class: "wt-set-label", text: t("roomLevelerLabel") }),
+                el("span", { class: "wt-set-desc", text: t("roomLevelerDesc") }),
+            ]),
+            el("span", { class: "wt-toggle" }, [lvInput, el("span", { class: "wt-slider" })]),
+        ]));
+        const range = el("input", { type: "range", id: "wt-lv-target", min: String(LEVEL_TARGET_MIN), max: String(LEVEL_TARGET_MAX), step: "1" });
+        range.addEventListener("input", () => { state.leveler.target = Number(range.value); renderLevelerSettings(); levelApplyAll(); });   // 끌면서 바로 반영
+        range.addEventListener("change", () => browser.storage.local.set({ roomLevelerTarget: Number(range.value) }).catch(() => {}));
+        drawer.appendChild(el("div", { class: "wt-set-row wt-set-stack" }, [
+            el("span", { class: "wt-set-text" }, [
+                el("span", { class: "wt-set-label", text: t("roomLevelerTarget") }),
+                el("span", { class: "wt-set-desc", id: "wt-lv-target-desc", text: t("roomLevelerTargetDesc") }),
+            ]),
+            range,
+        ]));
         for (const group of SETTINGS) {
             drawer.appendChild(el("div", { class: "wt-set-head", text: t(group.section) }));
             for (const item of group.items) {
@@ -254,8 +280,20 @@
 
     // --- 채널 목록 저장/복원 ---
     async function loadState() {
-        const r = await WT.load(["roomChannels", "roomSound", "roomLayout", "roomChatSide"]);
+        const r = await WT.load(["roomChannels", "roomSound", "roomLayout", "roomChatSide", "roomLevelerEnabled", "roomLevelerTarget", "roomLevelerProfiles"]);
+        // 프로파일은 측정 방식 버전(v)이 같은 것만 쓴다 (v2: K-가중 라우드니스. 그 전 RMS 값은 버린다)
+        state.levelProfiles = Object.fromEntries(Object.entries(r.roomLevelerProfiles && typeof r.roomLevelerProfiles === "object" ? r.roomLevelerProfiles : {})
+            .filter(([, v]) => v && v.v === LEVEL_PROFILE_VERSION));
         state.chatSide = r.roomChatSide === "left" ? "left" : "right";
+        state.leveler.enabled = r.roomLevelerEnabled === true;
+        state.leveler.target = clampTarget(r.roomLevelerTarget);
+        // 다른 탭/창에서 바뀐 경우용. 자기 탭의 조작은 서랍에서 바로 적용한다(relay 가 자기 탭으로 돌아오지 않을 수 있다).
+        WT.watch(["roomLevelerEnabled", "roomLevelerTarget"], (c) => {
+            if ("roomLevelerEnabled" in c) state.leveler.enabled = c.roomLevelerEnabled.newValue === true;
+            if ("roomLevelerTarget" in c) state.leveler.target = clampTarget(c.roomLevelerTarget.newValue);
+            renderLevelerSettings();
+            applyLevelerSetting();
+        });
         state.channels = Array.isArray(r.roomChannels) ? r.roomChannels.slice(0, MAX_CHANNELS) : [];
         // roomSound: 예전(단일 id 문자열)과 현재(배열) 둘 다 받아들인다
         const snd = r.roomSound;
@@ -312,11 +350,12 @@
             b.setAttribute("aria-pressed", String(b.dataset.cols === String(state.cols)));
         }
         document.getElementById("wt-fit").setAttribute("aria-pressed", String(state.fit));
+        renderLevelerSettings();
 
         if (state.focus !== null && !online.some(c => c.id === state.focus)) exitFocus();   // 집중 중인 방송이 끝나면 격자로
         // 없어졌거나 종료된 채널의 타일은 내린다 (종료된 방송의 iframe 은 붙들고 있지 않는다)
         for (const [id, tile] of tiles) {
-            if (!online.some(c => c.id === id)) { tile.root.remove(); tiles.delete(id); }
+            if (!online.some(c => c.id === id)) { detachLeveler(tile); tile.root.remove(); tiles.delete(id); }
         }
         // 켜진 채널만 격자에. 순서는 state.channels 의 순서를 따르되 CSS order 로만 표현
         state.channels.forEach((ch, i) => {
@@ -411,6 +450,7 @@
                 el("span", { class: "wt-live", text: "LIVE" }),
                 el("span", { class: "wt-name", text: ch.name || ch.id }),
                 el("span", { class: "wt-viewers" }),
+                el("span", { class: "wt-level", title: t("roomLevelerBadge") }),
                 el("span", { class: "wt-sp" }),
                 el("button", { class: "wt-btn wt-icon wt-focus-btn", type: "button", title: t("roomFocus"), "aria-label": t("roomFocus"),
                     onclick: (e) => { e.stopPropagation(); toggleFocus(ch.id); } }, [focusIcon()]),
@@ -510,6 +550,7 @@
             } else {
                 tile.root.classList.add("sound-pending");
             }
+            if (want && state.leveler.enabled) levelApply(id);   // 간직한 평균이 있으면 켜는 순간 맞춘다
         }
         updateTile(id);
     }
@@ -706,6 +747,300 @@
         return arr;
     }
 
+    // --- 소리 평준화 ---
+    // 채널마다 방송 원본 음량이 제각각이라, 사용자가 정한 기준(dBFS)에 맞춰 큰 방송을 낮춘다. 보정은 video.volume 으로만(최대 100%).
+    //
+    // 왜 이렇게 하나: Safari 는 <video> 의 소리를 Web Audio 로 넘겨주지 않는다 — 네이티브 HLS 도, hls.js(MSE) 로 바꿔도
+    // 분석기에는 0 만 들어온다(2026-09-13 실기기 확인). 그래서 플레이어 소리는 건드리지 않고, 같은 HLS 의 가장 낮은 화질 변형
+    // (144p, ~190kbps) 세그먼트를 따로 받아 OfflineAudioContext.decodeAudioData 로 풀고, BS.1770 방식(K-가중 + 게이트)으로
+    // 라우드니스(LUFS 근사)를 잰다(세그먼트 ~1초, 54KB, 디코드 ~80ms). 단순 RMS 보다 사람이 느끼는 크기에 가깝다.
+    // 평균 기반·저부하: 10초에 세그먼트 하나만 받아(처음 3개는 3초 간격) 최근 약 2분 표본의 파워 평균을 내고,
+    // 평균이 1dB 이상 달라졌을 때만 1초 램프로 볼륨을 한 번 맞춘다. 실시간 추종은 하지 않는다(의도). 재생목록 주소는 live-detail 의 livePlaybackJson.
+    // 소리가 켜진 타일만 잰다(음소거 타일 몫의 부하를 없앤다). 음소거해도 표본은 간직해 다시 켤 때 바로 옛 평균으로 맞추고,
+    // 5분 넘게 쉬었으면 표본을 2개만 남겨 빠른 주기로 갱신한다.
+    // 부하 절감 세 가지: (1) 채널별 평균을 storage(roomLevelerProfiles)에 저장해 다음에 열 때 준비 과정 없이 바로 맞추고, 표본 편차가
+    // 작은 채널은 주기를 30초·60초로 늘린다(적응형). (2) 탭이 숨겨졌거나 영상이 정지·버퍼링이면 재지 않는다. (3) 분석 컨텍스트는 8kHz 모노 —
+    // 디코드 출력이 작아진다(4kHz 위 에너지가 빠져 0.5dB 쯤 낮게 재지만 채널 간 비교엔 영향 없다).
+    //
+    // 한계: 100% 를 넘겨 키울 수 없다. 기준보다 조용한 방송은 100% 에 고정되고 배지에 부족분을 표시한다 → 기준을 낮추고 시스템 볼륨을 올리는 식으로 쓴다.
+    // 부작용: 치지직 플레이어는 volume 변경을 사용자 설정으로 저장한다. 끄면 처음 볼륨으로 되돌리지만, 켜진 채 타일을 없애면 마지막 값이 남는다.
+    const LEVEL_POLL_FAST_MS = 3_000;                   // 켜자마자(표본 부족) 빠르게 재는 주기
+    const LEVEL_POLL_MS = 10_000;                       // 자리를 잡은 뒤 표본 하나 받는 주기 (타일당 ≈5KB/s, 디코드 ~80ms/10초)
+    const LEVEL_POLL_STEADY_MS = 30_000, LEVEL_POLL_IDLE_MS = 60_000;   // 표본 편차가 작아 안정된 채널은 더 드물게 (적응형 주기)
+    const LEVEL_STEADY_STD_DB = 4, LEVEL_IDLE_STD_DB = 2;   // 편차(표준편차) 기준
+    const LEVEL_DEVIATE_DB = 3;                         // 새 표본이 평균에서 이만큼 벗어나면 빠른 주기로 돌아간다(2번 연속이면 표본을 버리고 새로)
+    const LEVEL_WARMUP = 3;                             // 이 개수까지는 빠른 주기
+    const LEVEL_PROFILE_SEED = 6;                       // 저장된 프로파일로 시작할 때 표본으로 치는 개수(신뢰도만큼)
+    const LEVEL_PROFILE_TTL_MS = 30 * 24 * 60 * 60_000; // 오래된 프로파일 정리
+    const LEVEL_PROFILE_VERSION = 2;                    // 측정 방식이 바뀌면 올린다 (저장된 값을 버리기 위해)
+    const LEVEL_WINDOW = 12;                            // 평균에 쓰는 표본 수 (10초 주기면 약 2분)
+    const LEVEL_HYST_DB = 1;                            // 평균이 이만큼 이상 달라져야 볼륨을 다시 맞춘다
+    const LEVEL_RAMP_MS = 1_000, LEVEL_RAMP_STEPS = 5;  // 볼륨 변경은 1초 램프로
+    const LEVEL_STALE_MS = 5 * 60_000;                  // 이보다 오래 쉰 표본은 옛 평균으로만 쓰고 빨리 갱신한다
+    const LEVEL_GATE_DB = -50;                          // 이보다 조용한 세그먼트(무음·잡음)는 표본에 넣지 않는다 (LUFS)
+    const LEVEL_MIN_GAIN_DB = -40;
+    const LEVEL_TARGET_DEF = -24, LEVEL_TARGET_MIN = -40, LEVEL_TARGET_MAX = -10;
+    let levelTimer = null, analysisCtx = null;
+
+    const dbToLin = (db) => Math.pow(10, db / 20);
+    const linToDb = (x) => 20 * Math.log10(Math.max(x, 1e-6));
+    const clampTarget = (v) => Number.isFinite(v) ? Math.min(LEVEL_TARGET_MAX, Math.max(LEVEL_TARGET_MIN, v)) : LEVEL_TARGET_DEF;
+
+    // live-detail 응답에서 HLS 마스터 재생목록 주소 (없으면 "")
+    function hlsPathOf(content) {
+        try {
+            const media = JSON.parse(content?.livePlaybackJson || "{}")?.media || [];
+            return (media.find(m => m.protocol === "HLS") || media[0])?.path || "";
+        } catch { return ""; }
+    }
+    // 마스터에서 대역폭이 가장 낮은 변형을 고른다 (분석용이라 오디오만 같으면 된다). 마스터가 아니면 그대로.
+    async function pickLowestVariant(masterUrl) {
+        const text = await (await fetch(masterUrl, { cache: "no-store" })).text();
+        const lines = text.split("\n").map(l => l.trim());
+        let best = null;
+        for (let i = 0; i < lines.length - 1; i++) {
+            if (!lines[i].startsWith("#EXT-X-STREAM-INF")) continue;
+            const bw = Number(/BANDWIDTH=(\d+)/.exec(lines[i])?.[1] || Infinity);
+            if (!best || bw < best.bw) best = { bw, url: new URL(lines[i + 1], masterUrl).href };
+        }
+        return best?.url || masterUrl;
+    }
+    // 초기화 세그먼트 + 미디어 세그먼트를 이어 디코드하고 라우드니스(LUFS 근사)를 돌려준다. 무음이면 -Infinity.
+    async function segmentLoudness(initBuf, segBuf) {
+        const buf = new Uint8Array((initBuf?.byteLength || 0) + segBuf.byteLength);
+        if (initBuf) buf.set(new Uint8Array(initBuf), 0);
+        buf.set(new Uint8Array(segBuf), initBuf?.byteLength || 0);
+        analysisCtx ||= new OfflineAudioContext(1, 8000, 8000);   // 모노·8kHz 로 리샘플되어 나온다 (음량 비교용으론 충분)
+        const ab = await analysisCtx.decodeAudioData(buf.buffer);
+        const x = Float32Array.from(ab.getChannelData(0));
+        kCoefs ||= kWeightCoefs(ab.sampleRate);
+        for (const c of kCoefs) biquad(x, c);
+        return gatedLoudness(x, ab.sampleRate);
+    }
+    // BS.1770 K-가중을 표본율에 맞춰 만든 2차 필터 계수(RBJ cookbook). 1단: +4dB 하이셸프(1682Hz), 2단: 하이패스(38Hz)
+    let kCoefs = null;
+    function kWeightCoefs(fs) {
+        const shelf = (f0, Q, gainDb) => {
+            const A = Math.pow(10, gainDb / 40), w = 2 * Math.PI * f0 / fs, c = Math.cos(w), a = Math.sin(w) / (2 * Q), s = 2 * Math.sqrt(A) * a;
+            const a0 = (A + 1) - (A - 1) * c + s;
+            return [A * ((A + 1) + (A - 1) * c + s) / a0, -2 * A * ((A - 1) + (A + 1) * c) / a0, A * ((A + 1) + (A - 1) * c - s) / a0,
+                2 * ((A - 1) - (A + 1) * c) / a0, ((A + 1) - (A - 1) * c - s) / a0];
+        };
+        const hp = (f0, Q) => {
+            const w = 2 * Math.PI * f0 / fs, c = Math.cos(w), a = Math.sin(w) / (2 * Q), a0 = 1 + a;
+            return [(1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - a) / a0];
+        };
+        return [shelf(1681.97, 0.7072, 3.9998), hp(38.135, 0.5003)];
+    }
+    function biquad(x, [b0, b1, b2, a1, a2]) {
+        let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+        for (let i = 0; i < x.length; i++) {
+            const y = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+            x2 = x1; x1 = x[i]; y2 = y1; y1 = y; x[i] = y;
+        }
+    }
+    // 게이트 달린 라우드니스: 400ms 블록(100ms 간격), 절대 -70 LUFS, 상대 -10 LU 게이트. 통과 블록이 없으면 -Infinity
+    function gatedLoudness(x, fs) {
+        const block = Math.round(fs * 0.4), hop = Math.round(fs * 0.1);
+        const powers = [];
+        for (let s = 0; s + block <= x.length; s += hop) {
+            let p = 0;
+            for (let i = s; i < s + block; i++) p += x[i] * x[i];
+            powers.push(p / block);
+        }
+        if (!powers.length) { let p = 0; for (const v of x) p += v * v; powers.push(p / Math.max(1, x.length)); }
+        const lk = (p) => -0.691 + 10 * Math.log10(Math.max(p, 1e-12));
+        const mean = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+        const abs = powers.filter(p => lk(p) > -70);
+        if (!abs.length) return -Infinity;
+        const rel = lk(mean(abs)) - 10;
+        const pass = abs.filter(p => lk(p) > rel);
+        return pass.length ? lk(mean(pass)) : -Infinity;
+    }
+
+    // 타일 하나: 변형 재생목록을 읽고 아직 안 본 최신 세그먼트가 있으면 받아서 표본에 넣는다
+    async function analyzeTile(id) {
+        const tile = tiles.get(id);
+        if (!tile || tile.lv?.busy) return;
+        const lv = ensureLv(id);
+        lv.busy = true;
+        try {
+            const hls = state.status[id]?.hls || "";
+            if (!hls) { lv.fail = "nohls"; return; }
+            if (lv.hls !== hls) { lv.hls = hls; lv.variant = await pickLowestVariant(hls); lv.initUrl = null; lv.lastSeg = null; }   // 방송이 다시 시작되면 주소가 바뀔 수 있다
+            const pl = await (await fetch(lv.variant, { cache: "no-store" })).text();
+            const lines = pl.split("\n").map(l => l.trim());
+            const mapUri = /URI="([^"]+)"/.exec(lines.find(l => l.startsWith("#EXT-X-MAP")) || "")?.[1];
+            const segs = lines.filter(l => l && !l.startsWith("#"));
+            const seg = segs[segs.length - 1];
+            if (!seg || seg === lv.lastSeg) return;
+            lv.lastSeg = seg;
+            const initUrl = mapUri ? new URL(mapUri, lv.variant).href : null;
+            if (initUrl && initUrl !== lv.initUrl) { lv.initBuf = await (await fetch(initUrl)).arrayBuffer(); lv.initUrl = initUrl; }
+            const segBuf = await (await fetch(new URL(seg, lv.variant).href)).arrayBuffer();
+            const db = await segmentLoudness(lv.initBuf, segBuf);
+            if (db > LEVEL_GATE_DB) {
+                // 평균에서 크게 벗어난 표본: 한 번이면 빠른 주기로 확인, 두 번 연속이면 스트리머가 볼륨을 바꾼 것으로 보고 새로 시작
+                const deviates = lv.measDb != null && Math.abs(db - lv.measDb) > LEVEL_DEVIATE_DB;
+                lv.deviations = deviates ? (lv.deviations || 0) + 1 : 0;
+                if (lv.deviations >= 2) { lv.samples = lv.samples.slice(-1); lv.deviations = 0; }
+                lv.samples.push(db);
+                lv.lastAt = Date.now();
+                if (lv.samples.length > LEVEL_WINDOW) lv.samples.shift();
+                lv.measDb = powerMeanDb(lv.samples);
+                levelApply(id);
+                saveProfile(id, lv);
+            }
+            lv.fail = null;
+            WT.log("level", id.slice(0, 6), { seg: Math.round(db), avg: Math.round(lv.measDb ?? -999), n: lv.samples.length, std: +stdDb(lv.samples).toFixed(1), next: nextInterval(lv) / 1000 });
+        } catch (e) {
+            lv.fail = e?.message || "err";
+            lv.hls = null;   // 다음 주기에 주소·변형을 다시 잡는다
+            WT.log("level", "분석 실패", id.slice(0, 6), lv.fail);
+        } finally {
+            lv.busy = false;
+            lv.nextAt = Date.now() + nextInterval(lv);
+            renderLevel(tile);
+        }
+    }
+    // 타일의 평준화 상태. 저장된 프로파일이 있으면 그 평균을 표본 몇 개로 쳐서 준비 과정 없이 시작한다.
+    function ensureLv(id) {
+        const tile = tiles.get(id);
+        if (!tile) return null;
+        if (tile.lv) return tile.lv;
+        const lv = tile.lv = { samples: [], measDb: null, applied: null, origVolume: null, busy: false, fail: null, nextAt: 0, deviations: 0, lastAt: 0 };
+        const prof = state.levelProfiles[id];
+        if (prof && Number.isFinite(prof.db)) {
+            lv.samples = new Array(Math.max(1, Math.min(LEVEL_PROFILE_SEED, prof.n || 1))).fill(prof.db);
+            lv.measDb = prof.db;
+            lv.lastAt = prof.at || 0;
+        }
+        return lv;
+    }
+    // 적응형 주기: 표본이 적으면 빠르게, 편차가 작으면 드물게, 방금 벗어난 표본이 있으면 다시 빠르게
+    function nextInterval(lv) {
+        if (lv.samples.length < LEVEL_WARMUP || lv.deviations > 0) return lv.samples.length < LEVEL_WARMUP ? LEVEL_POLL_FAST_MS : LEVEL_POLL_MS;
+        const std = stdDb(lv.samples);
+        return std < LEVEL_IDLE_STD_DB ? LEVEL_POLL_IDLE_MS : std < LEVEL_STEADY_STD_DB ? LEVEL_POLL_STEADY_MS : LEVEL_POLL_MS;
+    }
+    function stdDb(samples) {
+        if (samples.length < 2) return Infinity;
+        const m = samples.reduce((a, b) => a + b, 0) / samples.length;
+        return Math.sqrt(samples.reduce((a, b) => a + (b - m) * (b - m), 0) / samples.length);
+    }
+    // 채널 프로파일 저장(30초에 한 번까지만). 오래된 항목은 함께 정리한다.
+    let profileSaveTimer = null;
+    function saveProfile(id, lv) {
+        state.levelProfiles[id] = { v: LEVEL_PROFILE_VERSION, db: +lv.measDb.toFixed(1), n: lv.samples.length, at: Date.now() };
+        if (profileSaveTimer) return;
+        profileSaveTimer = setTimeout(() => {
+            profileSaveTimer = null;
+            const now = Date.now();
+            for (const [k, v] of Object.entries(state.levelProfiles)) if (!v || now - (v.at || 0) > LEVEL_PROFILE_TTL_MS) delete state.levelProfiles[k];
+            browser.storage.local.set({ roomLevelerProfiles: state.levelProfiles }).catch(() => {});
+        }, 30_000);
+    }
+    // 표본(LUFS)들의 파워 평균 — 큰 구간이 더 반영되는 "평균 음량"
+    function powerMeanDb(samples) {
+        let sum = 0;
+        for (const db of samples) sum += Math.pow(10, db / 10);
+        return 10 * Math.log10(sum / samples.length);
+    }
+    // 1초마다 돌며, 소리가 켜진 타일 중 차례가 된 것만 표본을 받는다
+    function levelSchedule() {
+        if (!state.leveler.enabled || document.hidden) return;   // 탭이 숨겨져 있으면 듣고 있지 않다
+        const now = Date.now();
+        for (const [id, tile] of tiles) {
+            if (tile.root.classList.contains("offline")) continue;
+            if (!state.sounds.has(id)) continue;   // 음소거 타일은 표본을 간직한 채 쉰다
+            const v = tileVideo(id);
+            if (!v || v.paused || v.readyState < 3) continue;   // 정지·버퍼링 중엔 재지 않는다
+            const lv = tile.lv;
+            if (lv?.samples.length && now - (lv.lastAt || 0) > LEVEL_STALE_MS) lv.samples = lv.samples.slice(-2);   // 오래 쉬었다 켜짐 → 빠른 주기로 갱신
+            if (!lv || lv.nextAt <= now) analyzeTile(id);
+        }
+    }
+    // 평균이 기준에서 벗어난 만큼 볼륨을 정한다. 이전 적용값과 1dB 이상 차이 날 때만, 1초 램프로 바꾼다.
+    function levelApply(id) {
+        const tile = tiles.get(id);
+        const lv = tile ? ensureLv(id) : null;
+        const v = tileVideo(id);
+        if (!lv || !v || lv.measDb == null) return;
+        const want = Math.min(0, Math.max(LEVEL_MIN_GAIN_DB, state.leveler.target - lv.measDb));
+        if (lv.applied != null && Math.abs(want - lv.applied) < LEVEL_HYST_DB) return;
+        if (lv.origVolume == null) lv.origVolume = playerStoredVolume(id) ?? v.volume;   // 끌 때 되돌릴 값
+        lv.applied = want;
+        rampVolume(lv, v, Math.min(1, dbToLin(want)));
+        WT.log("level", "볼륨 조절", id.slice(0, 6), { avg: Math.round(lv.measDb), gain: +want.toFixed(1), vol: +Math.min(1, dbToLin(want)).toFixed(2) });
+        renderLevel(tile);
+    }
+    function rampVolume(lv, v, to) {
+        clearInterval(lv.ramp);
+        const from = v.volume, step = LEVEL_RAMP_MS / LEVEL_RAMP_STEPS;
+        let i = 0;
+        lv.ramp = setInterval(() => {
+            i++;
+            try { v.volume = from + (to - from) * (i / LEVEL_RAMP_STEPS); } catch {}
+            if (i >= LEVEL_RAMP_STEPS) { clearInterval(lv.ramp); lv.ramp = null; }
+        }, step);
+    }
+    function levelApplyAll() { for (const id of tiles.keys()) levelApply(id); }
+    function levelerStart() {
+        levelTimer ||= setInterval(levelSchedule, 1_000);
+        levelSchedule();
+    }
+    function levelerStop() {
+        clearInterval(levelTimer); levelTimer = null;
+        for (const tile of tiles.values()) detachLeveler(tile);
+    }
+    // 타일의 평준화 상태를 지우고 플레이어 볼륨을 처음 값으로 되돌린다
+    function detachLeveler(tile) {
+        if (!tile?.lv) return;
+        clearInterval(tile.lv.ramp);
+        const v = tileVideo(tile.root.dataset.id);
+        if (v && tile.lv.origVolume != null) { try { v.volume = tile.lv.origVolume; } catch {} WT.log("level", "볼륨 복원", tile.root.dataset.id.slice(0, 6), tile.lv.origVolume); }
+        tile.lv = null;
+        renderLevel(tile);
+    }
+    // 플레이어가 저장해 둔 사용자 볼륨. 프로그램으로 바꾼 video.volume 은 여기에 저장되지 않는다(2026-09-13 STP 확인).
+    function playerStoredVolume(id) {
+        try {
+            const raw = tiles.get(id)?.iframe.contentWindow?.localStorage.getItem("player-volume");
+            const val = raw ? JSON.parse(raw)?.value : null;
+            return typeof val === "number" && val >= 0 && val <= 1 ? val : null;
+        } catch { return null; }
+    }
+    function applyLevelerSetting() {
+        if (state.leveler.enabled) levelerStart(); else levelerStop();
+        WT.log("level", state.leveler.enabled ? "켬" : "끔", state.leveler.target);
+    }
+    function renderLevelerSettings() {
+        const on = document.getElementById("wt-lv-on");
+        if (on) on.checked = state.leveler.enabled;
+        const range = document.getElementById("wt-lv-target");
+        if (range && Number(range.value) !== state.leveler.target) range.value = String(state.leveler.target);
+        const desc = document.getElementById("wt-lv-target-desc");
+        if (desc) desc.textContent = `${t("roomLevelerTargetDesc")} · ${t("roomCurrent")}: ${state.leveler.target} LUFS`;
+    }
+    // 타일 상단 배지: 적용 중인 볼륨 % 만 짧게. ▲ 는 기준보다 조용해 100% 에 고정됐다는 뜻. 자세한 값은 툴팁.
+    function renderLevel(tile) {
+        const badge = tile.root.querySelector(".wt-level");
+        if (!badge) return;
+        const lv = tile.lv;
+        let text = "", title = t("roomLevelerBadge");
+        if (lv) {
+            if (lv.fail) { text = "♪ ✗"; title = `${t("roomLevelerBadge")} · ${lv.fail}`; }
+            else if (lv.measDb == null || lv.applied == null) text = "♪ …";
+            else {
+                const short = state.leveler.target - lv.measDb;   // 양수면 기준까지 이만큼 더 키워야 하는데 못 키운다
+                text = `♪ ${Math.round(Math.min(1, dbToLin(lv.applied)) * 100)}%` + (short > 0.5 ? " ▲" : "");
+                title = `${Math.round(lv.measDb)} LUFS · ${t("roomLevelerTarget")} ${state.leveler.target}` + (short > 0.5 ? ` · ${t("roomLevelerShort")} ${short.toFixed(1)} dB` : "");
+            }
+        }
+        if (badge.textContent !== text) badge.textContent = text;
+        if (badge.title !== title) badge.title = title;
+    }
+
     // --- 재생 실패 감시 ---
     // 치지직 플레이어가 "미디어 재생이 실패했습니다" 를 띄우거나 video.error 가 생기면
     // 우리 오버레이를 덮고 자동으로 다시 불러온다(10분에 3회까지). 그 뒤로는 수동 버튼만.
@@ -769,7 +1104,7 @@
                 const r = await fetch(`${API}/v2/channels/${id}/live-detail`, { credentials: "include" });
                 const c = (await r.json())?.content;
                 const wasOffline = isOffline(id);
-                state.status[id] = c ? { open: c.status === "OPEN", title: c.liveTitle || "", viewers: c.concurrentUserCount } : { open: false };
+                state.status[id] = c ? { open: c.status === "OPEN", title: c.liveTitle || "", viewers: c.concurrentUserCount, hls: hlsPathOf(c) } : { open: false };
                 if (wasOffline !== isOffline(id)) changed = true;
                 // 이름 없이 추가된 채널(URL 추가)은 여기서 이름을 채운다
                 const ch = state.channels.find(x => x.id === id);
@@ -796,6 +1131,7 @@
         setInterval(checkPlayback, PLAYBACK_CHECK_MS);
         window.addEventListener("resize", fitTiles);
         document.addEventListener("pointerdown", applyPendingSounds, true);
+        applyLevelerSetting();
         document.addEventListener("keydown", (e) => { if (handleRoomKey(e)) e.preventDefault(); });
         // 채팅 서랍 iframe 안에서도(입력창 밖) 같은 단축키가 통하게. 채널이 바뀌어 다시 불러오면 load 가 또 와서 새 문서에 붙는다.
         document.getElementById("wt-chat-frame")?.addEventListener("load", (e) => {

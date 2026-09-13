@@ -14,6 +14,7 @@ Watchtower bundles a **Situation Room** for watching several Chzzk channels on o
 - **Hide YouTube Shorts** — Removes the Shorts section from the home feed and the Shorts entry from the sidebar.
 - **Video Frame Capture** — Right-click any `<video>` element to copy or download the current frame as a PNG.
 - **Chzzk Ad Auto-skip** — Presses the ad SKIP button the moment it becomes clickable. Ads are not blocked. (Also works inside Situation Room tiles)
+- **Loudness Leveler** (Situation Room) — Streams arrive at different volumes; pull loud ones down toward a target. Only unmuted streams are sampled from a low-quality rendition now and then, and per-channel averages are remembered. Volume cannot exceed 100%, so it levels downward.
 - **Press to Fast-Forward** — Press and hold on a video to play at 2× speed; release to restore the original speed. (Works on any `<video>`, e.g. Chzzk VOD. YouTube is excluded since it has this built in.)
 
 ## Installation
@@ -45,6 +46,7 @@ Watch several Chzzk channels on one screen without switching tabs.
 - **Swap**: hover a tile, grab its top bar, and drop it onto another tile to swap the two streams. Playback is not interrupted.
 - **Sound**: use the speaker button of the Chzzk player inside each tile. Several channels can play sound at once, and tiles with sound get a glowing border. Safari only allows unmuting on a click.
 - **Focus view**: double-click a tile (or press the expand button in its hover bar) to make that stream fill the room with sound on that channel only. Double-click again, press Esc, or hit `← Grid` at the top to return to the previous grid and sound state. While focused, `←`/`→` move to the neighbouring stream; in the grid, number keys 1–9 focus the n-th stream.
+- **Loudness leveler**: enable it in the settings drawer. Tiles with sound show the applied volume in their hover bar, e.g. `♪ 79%`; `▲` means that stream is quieter than the target and pinned at 100% (if you see it often, lower the target and raise the system volume). Safari does not expose player audio to Web Audio, so the room fetches one lowest-quality segment of the same stream every 10–60 s and measures loudness from it. Turning it off restores the player volume.
 - **Chat**: in focus view a chat handle sits at the screen edge. Hover it and the chat slides in; move the mouse out of the chat and it hides again (it stays open while you are over the top bar or the shelf). It embeds Chzzk's pop-out chat, so you can type when signed in. Pick the edge (left/right) in the settings drawer.
 - **Live status**: checked every minute. Offline channels leave the grid and collect as small chips on a shelf at the bottom (removable there); when they go live again they return to their original spot automatically.
 - **Playback failure**: when the player fails, the room covers it and retries automatically (up to 3 times in 10 minutes), then leaves a `Retry` button.
