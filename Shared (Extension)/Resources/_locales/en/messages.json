@@ -163,17 +163,23 @@
     "roomChatTab": {
         "message": "Chat"
     },
-    "roomChatSide": {
-        "message": "Chat side"
+    "roomChatDock": {
+        "message": "Chat drawer"
     },
-    "roomChatSideDesc": {
-        "message": "Which edge the chat drawer slides in from in focus view"
+    "roomChatDockDesc": {
+        "message": "Where chat slides in during focus view · both can be on"
     },
     "roomChatLeft": {
         "message": "Left"
     },
     "roomChatRight": {
         "message": "Right"
+    },
+    "roomChatBoth": {
+        "message": "Both"
+    },
+    "roomChatNone": {
+        "message": "Off"
     },
     "roomCurrent": {
         "message": "Now"

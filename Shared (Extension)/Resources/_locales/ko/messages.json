@@ -163,17 +163,23 @@
     "roomChatTab": {
         "message": "채팅"
     },
-    "roomChatSide": {
-        "message": "채팅 위치"
+    "roomChatDock": {
+        "message": "채팅 서랍"
     },
-    "roomChatSideDesc": {
-        "message": "집중 보기에서 채팅 서랍이 나오는 쪽"
+    "roomChatDockDesc": {
+        "message": "집중 보기에서 채팅이 나오는 쪽 · 둘 다 켤 수 있어요"
     },
     "roomChatLeft": {
         "message": "왼쪽"
     },
     "roomChatRight": {
         "message": "오른쪽"
+    },
+    "roomChatBoth": {
+        "message": "양쪽"
+    },
+    "roomChatNone": {
+        "message": "끔"
     },
     "roomCurrent": {
         "message": "현재"
