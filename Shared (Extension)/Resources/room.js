@@ -281,7 +281,9 @@
     // --- 채널 목록 저장/복원 ---
     async function loadState() {
         const r = await WT.load(["roomChannels", "roomSound", "roomLayout", "roomChatSide", "roomLevelerEnabled", "roomLevelerTarget", "roomLevelerProfiles"]);
-        state.levelProfiles = r.roomLevelerProfiles && typeof r.roomLevelerProfiles === "object" ? r.roomLevelerProfiles : {};
+        // 프로파일은 측정 방식 버전(v)이 같은 것만 쓴다 (v2: K-가중 라우드니스. 그 전 RMS 값은 버린다)
+        state.levelProfiles = Object.fromEntries(Object.entries(r.roomLevelerProfiles && typeof r.roomLevelerProfiles === "object" ? r.roomLevelerProfiles : {})
+            .filter(([, v]) => v && v.v === LEVEL_PROFILE_VERSION));
         state.chatSide = r.roomChatSide === "left" ? "left" : "right";
         state.leveler.enabled = r.roomLevelerEnabled === true;
         state.leveler.target = clampTarget(r.roomLevelerTarget);
@@ -745,12 +747,13 @@
         return arr;
     }
 
-    // --- 소리 평준화 (PoC) ---
+    // --- 소리 평준화 ---
     // 채널마다 방송 원본 음량이 제각각이라, 사용자가 정한 기준(dBFS)에 맞춰 큰 방송을 낮춘다. 보정은 video.volume 으로만(최대 100%).
     //
     // 왜 이렇게 하나: Safari 는 <video> 의 소리를 Web Audio 로 넘겨주지 않는다 — 네이티브 HLS 도, hls.js(MSE) 로 바꿔도
     // 분석기에는 0 만 들어온다(2026-09-13 실기기 확인). 그래서 플레이어 소리는 건드리지 않고, 같은 HLS 의 가장 낮은 화질 변형
-    // (144p, ~190kbps) 세그먼트를 따로 받아 OfflineAudioContext.decodeAudioData 로 풀어 RMS 를 잰다(세그먼트 ~1초, 54KB, 디코드 ~80ms).
+    // (144p, ~190kbps) 세그먼트를 따로 받아 OfflineAudioContext.decodeAudioData 로 풀고, BS.1770 방식(K-가중 + 게이트)으로
+    // 라우드니스(LUFS 근사)를 잰다(세그먼트 ~1초, 54KB, 디코드 ~80ms). 단순 RMS 보다 사람이 느끼는 크기에 가깝다.
     // 평균 기반·저부하: 10초에 세그먼트 하나만 받아(처음 3개는 3초 간격) 최근 약 2분 표본의 파워 평균을 내고,
     // 평균이 1dB 이상 달라졌을 때만 1초 램프로 볼륨을 한 번 맞춘다. 실시간 추종은 하지 않는다(의도). 재생목록 주소는 live-detail 의 livePlaybackJson.
     // 소리가 켜진 타일만 잰다(음소거 타일 몫의 부하를 없앤다). 음소거해도 표본은 간직해 다시 켤 때 바로 옛 평균으로 맞추고,
@@ -769,11 +772,12 @@
     const LEVEL_WARMUP = 3;                             // 이 개수까지는 빠른 주기
     const LEVEL_PROFILE_SEED = 6;                       // 저장된 프로파일로 시작할 때 표본으로 치는 개수(신뢰도만큼)
     const LEVEL_PROFILE_TTL_MS = 30 * 24 * 60 * 60_000; // 오래된 프로파일 정리
+    const LEVEL_PROFILE_VERSION = 2;                    // 측정 방식이 바뀌면 올린다 (저장된 값을 버리기 위해)
     const LEVEL_WINDOW = 12;                            // 평균에 쓰는 표본 수 (10초 주기면 약 2분)
     const LEVEL_HYST_DB = 1;                            // 평균이 이만큼 이상 달라져야 볼륨을 다시 맞춘다
     const LEVEL_RAMP_MS = 1_000, LEVEL_RAMP_STEPS = 5;  // 볼륨 변경은 1초 램프로
     const LEVEL_STALE_MS = 5 * 60_000;                  // 이보다 오래 쉰 표본은 옛 평균으로만 쓰고 빨리 갱신한다
-    const LEVEL_GATE_DB = -50;                          // 이보다 조용한 세그먼트(무음)는 표본에 넣지 않는다
+    const LEVEL_GATE_DB = -50;                          // 이보다 조용한 세그먼트(무음·잡음)는 표본에 넣지 않는다 (LUFS)
     const LEVEL_MIN_GAIN_DB = -40;
     const LEVEL_TARGET_DEF = -24, LEVEL_TARGET_MIN = -40, LEVEL_TARGET_MAX = -10;
     let levelTimer = null, analysisCtx = null;
@@ -801,20 +805,57 @@
         }
         return best?.url || masterUrl;
     }
-    // 초기화 세그먼트 + 미디어 세그먼트를 이어 디코드하고 전체 채널 평균 RMS(dBFS)를 돌려준다
+    // 초기화 세그먼트 + 미디어 세그먼트를 이어 디코드하고 라우드니스(LUFS 근사)를 돌려준다. 무음이면 -Infinity.
     async function segmentLoudness(initBuf, segBuf) {
         const buf = new Uint8Array((initBuf?.byteLength || 0) + segBuf.byteLength);
         if (initBuf) buf.set(new Uint8Array(initBuf), 0);
         buf.set(new Uint8Array(segBuf), initBuf?.byteLength || 0);
         analysisCtx ||= new OfflineAudioContext(1, 8000, 8000);   // 모노·8kHz 로 리샘플되어 나온다 (음량 비교용으론 충분)
         const ab = await analysisCtx.decodeAudioData(buf.buffer);
-        let sum = 0, n = 0;
-        for (let c = 0; c < ab.numberOfChannels; c++) {
-            const d = ab.getChannelData(c);
-            for (let i = 0; i < d.length; i++) sum += d[i] * d[i];
-            n += d.length;
+        const x = Float32Array.from(ab.getChannelData(0));
+        kCoefs ||= kWeightCoefs(ab.sampleRate);
+        for (const c of kCoefs) biquad(x, c);
+        return gatedLoudness(x, ab.sampleRate);
+    }
+    // BS.1770 K-가중을 표본율에 맞춰 만든 2차 필터 계수(RBJ cookbook). 1단: +4dB 하이셸프(1682Hz), 2단: 하이패스(38Hz)
+    let kCoefs = null;
+    function kWeightCoefs(fs) {
+        const shelf = (f0, Q, gainDb) => {
+            const A = Math.pow(10, gainDb / 40), w = 2 * Math.PI * f0 / fs, c = Math.cos(w), a = Math.sin(w) / (2 * Q), s = 2 * Math.sqrt(A) * a;
+            const a0 = (A + 1) - (A - 1) * c + s;
+            return [A * ((A + 1) + (A - 1) * c + s) / a0, -2 * A * ((A - 1) + (A + 1) * c) / a0, A * ((A + 1) + (A - 1) * c - s) / a0,
+                2 * ((A - 1) - (A + 1) * c) / a0, ((A + 1) - (A - 1) * c - s) / a0];
+        };
+        const hp = (f0, Q) => {
+            const w = 2 * Math.PI * f0 / fs, c = Math.cos(w), a = Math.sin(w) / (2 * Q), a0 = 1 + a;
+            return [(1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - a) / a0];
+        };
+        return [shelf(1681.97, 0.7072, 3.9998), hp(38.135, 0.5003)];
+    }
+    function biquad(x, [b0, b1, b2, a1, a2]) {
+        let x1 = 0, x2 = 0, y1 = 0, y2 = 0;
+        for (let i = 0; i < x.length; i++) {
+            const y = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2;
+            x2 = x1; x1 = x[i]; y2 = y1; y1 = y; x[i] = y;
         }
-        return linToDb(Math.sqrt(sum / Math.max(1, n)));
+    }
+    // 게이트 달린 라우드니스: 400ms 블록(100ms 간격), 절대 -70 LUFS, 상대 -10 LU 게이트. 통과 블록이 없으면 -Infinity
+    function gatedLoudness(x, fs) {
+        const block = Math.round(fs * 0.4), hop = Math.round(fs * 0.1);
+        const powers = [];
+        for (let s = 0; s + block <= x.length; s += hop) {
+            let p = 0;
+            for (let i = s; i < s + block; i++) p += x[i] * x[i];
+            powers.push(p / block);
+        }
+        if (!powers.length) { let p = 0; for (const v of x) p += v * v; powers.push(p / Math.max(1, x.length)); }
+        const lk = (p) => -0.691 + 10 * Math.log10(Math.max(p, 1e-12));
+        const mean = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+        const abs = powers.filter(p => lk(p) > -70);
+        if (!abs.length) return -Infinity;
+        const rel = lk(mean(abs)) - 10;
+        const pass = abs.filter(p => lk(p) > rel);
+        return pass.length ? lk(mean(pass)) : -Infinity;
     }
 
     // 타일 하나: 변형 재생목록을 읽고 아직 안 본 최신 세그먼트가 있으면 받아서 표본에 넣는다
@@ -890,7 +931,7 @@
     // 채널 프로파일 저장(30초에 한 번까지만). 오래된 항목은 함께 정리한다.
     let profileSaveTimer = null;
     function saveProfile(id, lv) {
-        state.levelProfiles[id] = { db: +lv.measDb.toFixed(1), n: lv.samples.length, at: Date.now() };
+        state.levelProfiles[id] = { v: LEVEL_PROFILE_VERSION, db: +lv.measDb.toFixed(1), n: lv.samples.length, at: Date.now() };
         if (profileSaveTimer) return;
         profileSaveTimer = setTimeout(() => {
             profileSaveTimer = null;
@@ -899,7 +940,7 @@
             browser.storage.local.set({ roomLevelerProfiles: state.levelProfiles }).catch(() => {});
         }, 30_000);
     }
-    // 표본(dB)들의 파워 평균 — 큰 구간이 더 반영되는 "평균 음량"
+    // 표본(LUFS)들의 파워 평균 — 큰 구간이 더 반영되는 "평균 음량"
     function powerMeanDb(samples) {
         let sum = 0;
         for (const db of samples) sum += Math.pow(10, db / 10);
@@ -979,23 +1020,25 @@
         const range = document.getElementById("wt-lv-target");
         if (range && Number(range.value) !== state.leveler.target) range.value = String(state.leveler.target);
         const desc = document.getElementById("wt-lv-target-desc");
-        if (desc) desc.textContent = `${t("roomLevelerTargetDesc")} · ${t("roomCurrent")}: ${state.leveler.target} dB`;
+        if (desc) desc.textContent = `${t("roomLevelerTargetDesc")} · ${t("roomCurrent")}: ${state.leveler.target} LUFS`;
     }
-    // 타일 상단 배지: "측정 dB → 볼륨%" (기준에 못 미치면 부족분). PoC 라 값을 그대로 보여 준다(기술 판단용)
+    // 타일 상단 배지: 적용 중인 볼륨 % 만 짧게. ▲ 는 기준보다 조용해 100% 에 고정됐다는 뜻. 자세한 값은 툴팁.
     function renderLevel(tile) {
         const badge = tile.root.querySelector(".wt-level");
         if (!badge) return;
         const lv = tile.lv;
-        let text = "";
+        let text = "", title = t("roomLevelerBadge");
         if (lv) {
-            if (lv.fail) text = "♪ ✗ " + lv.fail;
-            else if (lv.measDb == null || lv.applied == null) text = `♪ … ${lv.samples.length}/${LEVEL_WARMUP}`;
+            if (lv.fail) { text = "♪ ✗"; title = `${t("roomLevelerBadge")} · ${lv.fail}`; }
+            else if (lv.measDb == null || lv.applied == null) text = "♪ …";
             else {
                 const short = state.leveler.target - lv.measDb;   // 양수면 기준까지 이만큼 더 키워야 하는데 못 키운다
-                text = `♪ ${Math.round(lv.measDb)} dB → ${Math.round(Math.min(1, dbToLin(lv.applied)) * 100)}%` + (short > 0.5 ? ` (${t("roomLevelerShort")} ${short.toFixed(1)})` : "");
+                text = `♪ ${Math.round(Math.min(1, dbToLin(lv.applied)) * 100)}%` + (short > 0.5 ? " ▲" : "");
+                title = `${Math.round(lv.measDb)} LUFS · ${t("roomLevelerTarget")} ${state.leveler.target}` + (short > 0.5 ? ` · ${t("roomLevelerShort")} ${short.toFixed(1)} dB` : "");
             }
         }
         if (badge.textContent !== text) badge.textContent = text;
+        if (badge.title !== title) badge.title = title;
     }
 
     // --- 재생 실패 감시 ---

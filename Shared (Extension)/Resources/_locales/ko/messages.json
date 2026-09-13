@@ -179,7 +179,7 @@
         "message": "현재"
     },
     "roomLevelerLabel": {
-        "message": "소리 평준화 (실험)"
+        "message": "소리 평준화"
     },
     "roomLevelerDesc": {
         "message": "채널마다 다른 방송 음량을 기준에 맞춰 큰 방송을 낮춘다(최대 100%). 소리가 켜진 방송만 낮은 화질 세그먼트를 가끔 받아 평균을 재고, 채널별 평균은 저장해 둔다"
@@ -188,10 +188,10 @@
         "message": "기준 음량"
     },
     "roomLevelerTargetDesc": {
-        "message": "이 값(dBFS)에 맞춘다. 낮을수록 조용하다"
+        "message": "이 값(LUFS)에 맞춘다. 낮을수록 조용하다. ▲ 가 자주 보이면 내린다"
     },
     "roomLevelerBadge": {
-        "message": "측정 음량 → 보정량"
+        "message": "소리 평준화: 적용 중인 볼륨 (▲ 기준보다 조용해 100% 고정)"
     },
     "roomLevelerShort": {
         "message": "부족"

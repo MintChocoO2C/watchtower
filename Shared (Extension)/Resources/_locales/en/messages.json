@@ -179,7 +179,7 @@
         "message": "Now"
     },
     "roomLevelerLabel": {
-        "message": "Loudness leveler (experimental)"
+        "message": "Loudness leveler"
     },
     "roomLevelerDesc": {
         "message": "Pull loud streams down toward a target (100% max). Only unmuted streams are sampled from a low-quality rendition now and then; per-channel averages are remembered"
@@ -188,10 +188,10 @@
         "message": "Target loudness"
     },
     "roomLevelerTargetDesc": {
-        "message": "Level to aim for (dBFS). Lower is quieter"
+        "message": "Level to aim for (LUFS). Lower is quieter. Lower it if ▲ shows often"
     },
     "roomLevelerBadge": {
-        "message": "Measured loudness → correction"
+        "message": "Loudness leveler: applied volume (▲ quieter than target, pinned at 100%)"
     },
     "roomLevelerShort": {
         "message": "short"
