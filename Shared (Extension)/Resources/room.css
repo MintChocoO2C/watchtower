@@ -153,7 +153,6 @@
 .focus-mode .wt-bar { box-shadow: inset 0 -2px 0 var(--wt-accent); }
 .focus-mode .wt-unfocus { border-color: var(--wt-accent); }
 .focus-mode .wt-body { background: #000; }
-.focus-mode .wt-scroll { padding: 0; }
 .wt-focus-toast {
     position: absolute; top: 18px; left: 50%; transform: translate(-50%, -6px); z-index: 11;
     display: flex; flex-direction: column; align-items: center; gap: 2px; max-width: min(70%, 520px);

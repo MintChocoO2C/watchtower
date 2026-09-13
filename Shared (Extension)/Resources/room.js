@@ -453,7 +453,9 @@
             e.preventDefault(); e.stopImmediatePropagation();
             toggleFocus(id);
         }, true);
-        doc.addEventListener("keydown", (e) => { if (e.key === "Escape" && state.focus) { e.preventDefault(); exitFocus(); } }, true);
+        // 집중 보기에 들어가면 키보드 포커스가 이 iframe 안에 있으므로(contentWindow.focus(), 더블클릭) 단축키를 여기서도 받는다.
+        // iframe 의 keydown 은 부모 문서로 올라가지 않는다.
+        doc.addEventListener("keydown", (e) => { if (handleRoomKey(e)) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
         doc.addEventListener("pointerover", () => { if (state.focus === id) closeChatDock(); }, { capture: true, passive: true });
         // 타일 안 광고 SKIP 버튼 자동 클릭 (content script 는 iframe 에서 돌지 않으므로 부모가 등록)
         WT.adSkip?.watch(doc);
@@ -555,6 +557,28 @@
         const i = online.findIndex(c => c.id === state.focus);
         const next = online[((i < 0 ? 0 : i) + delta + online.length) % online.length];
         if (next) enterFocus(next.id);
+    }
+    // 상황실 단축키. 부모 문서와 타일·채팅 iframe 문서 모두 이 함수를 부른다(키보드 포커스가 어디에 있든 같은 동작).
+    // 처리했으면 true 를 돌려주고, 호출한 쪽이 기본 동작(플레이어 탐색 등)을 막는다.
+    function handleRoomKey(e) {
+        if (e.target?.closest?.("input, textarea, [contenteditable]")) return false;
+        if (e.key === "Escape") {
+            const had = state.focus !== null;
+            closeOverlays();
+            if (had) exitFocus();
+            return had;
+        }
+        if (state.focus !== null && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+            focusStep(e.key === "ArrowRight" ? 1 : -1);
+            return true;
+        }
+        if (/^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) {
+            const ch = onlineChannels()[Number(e.key) - 1];
+            if (!ch) return false;
+            toggleFocus(ch.id);
+            return true;
+        }
+        return false;
     }
 
     // 첫 사용자 제스처가 생기면 보류된 소리 의도를 적용한다
@@ -772,14 +796,11 @@
         setInterval(checkPlayback, PLAYBACK_CHECK_MS);
         window.addEventListener("resize", fitTiles);
         document.addEventListener("pointerdown", applyPendingSounds, true);
-        document.addEventListener("keydown", (e) => {
-            if (e.target?.closest?.("input, textarea, [contenteditable]")) return;
-            if (e.key === "Escape") { closeOverlays(); if (state.focus !== null) exitFocus(); return; }
-            if (state.focus !== null && (e.key === "ArrowRight" || e.key === "ArrowLeft")) { e.preventDefault(); focusStep(e.key === "ArrowRight" ? 1 : -1); return; }
-            if (/^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) {
-                const ch = onlineChannels()[Number(e.key) - 1];
-                if (ch) toggleFocus(ch.id);
-            }
+        document.addEventListener("keydown", (e) => { if (handleRoomKey(e)) e.preventDefault(); });
+        // 채팅 서랍 iframe 안에서도(입력창 밖) 같은 단축키가 통하게. 채널이 바뀌어 다시 불러오면 load 가 또 와서 새 문서에 붙는다.
+        document.getElementById("wt-chat-frame")?.addEventListener("load", (e) => {
+            try { e.target.contentDocument?.addEventListener("keydown", (ke) => { if (handleRoomKey(ke)) { ke.preventDefault(); ke.stopImmediatePropagation(); } }, true); }
+            catch (_) { /* about:blank 나 교차 출처면 무시 */ }
         });
         WT.log("room", "상황실 시작", state.channels.length, "채널");
     }
