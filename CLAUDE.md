@@ -65,7 +65,7 @@ background에 위임하는 공용 서비스를 추가할 때는 메시지 이름
 - **소리**: 의도는 `state.sounds`(여러 개), 실제는 각 iframe 의 `video.muted`(`volumechange` capture 구독으로 플레이어 자체 버튼 조작도 따라감). 우리 UI 에는 소리 버튼이 없고 테두리 발광으로만 표시한다. 자동 재생은 음소거에서만 되므로 `navigator.userActivation.hasBeenActive` 가 있을 때만 풀고, 없으면 `sound-pending` 으로 두었다가 첫 `pointerdown` 에 적용한다. 우리가 되돌린 음소거는 `tile.autoMuting` 으로 표시해 사용자 조작으로 치지 않는다. **음소거 타일에 `play()` 를 부르지 말 것**(플레이어의 광고/준비 단계가 멈춘다).
 - **종료된 방송**: 60초 폴링(`/service/v2/channels/<id>/live-detail`, 로그인 불필요)에서 `open === false` 면 격자에서 빼고 iframe 을 내린 뒤 하단 선반(`.wt-shelf`)에 칩으로 둔다. 다시 켜지면 원래 순서 자리에 타일을 새로 만든다. 팔로우 목록에서 추가할 때는 목록이 준 켜짐/종료를 먼저 반영하고 그린다(격자에 잠깐 떴다가 밀려나지 않게).
 - **집중 보기**(`state.focus`): 타일 더블클릭(플레이어의 더블클릭 전체화면은 capture 에서 차단) 또는 상단 바 확대 버튼. 그 타일이 `.wt-body` 를 `position:absolute` 로 채우고 소리는 그 채널만(들어갈 때 `soundBackup`, 나올 때 복원). 나머지 타일은 자리에 둔 채 `visibility:hidden`(재생 유지). Esc/←/→/숫자 키 지원.
-- **채팅 서랍**(`.wt-chatdock`, 집중 보기 전용): 치지직 팝업 채팅 `/live/<id>/chat` 을 같은 출처 iframe 으로 담는다. 열림/닫힘은 CSS `:hover` 가 아니라 명시적 `open` 클래스다 — 서랍에 `pointerenter` 하면 열고, 서랍에서 `pointerleave` 하면 120ms 뒤 닫되 상단 바·선반 `pointerenter` 가 오면 취소, 채팅 입력 중(`:focus-within`)엔 유지. iframe 사이(채팅→영상) 이동은 부모의 `pointerleave` 로만 안정적으로 잡힌다. 손잡이는 반투명 알약. 위치는 `roomChatSide`.
+- **채팅 서랍**(`.wt-chatdock`, 집중 보기 전용): 치지직 팝업 채팅 `/live/<id>/chat` 을 같은 출처 iframe 으로 담는다. 열림/닫힘은 CSS `:hover` 가 아니라 명시적 `open` 클래스다 — 서랍에 `pointerenter` 하면 열고, 서랍에서 `pointerleave` 하면 120ms 뒤 닫되 상단 바·선반 `pointerenter` 가 오면 취소, 채팅 입력 중(`:focus-within`)엔 유지. iframe 사이(채팅→영상) 이동은 부모의 `pointerleave` 로만 안정적으로 잡힌다. 손잡이는 반투명 알약. 서랍은 왼쪽·오른쪽 두 개를 항상 만들어 두고 `roomChatSides`(`{left, right}`)로 각각 켜고 끈다 — 둘 다 켜면 양쪽, 둘 다 끄면 없음. 한 번에 하나만 열리고, 꺼진 쪽은 iframe 을 `about:blank` 로 내린다. 예전 단일 값 `roomChatSide` 는 로드 시 옮긴다.
 - **재생 실패**: 5초마다 `video.error` 와 플레이어 문구("재생이 실패")를 감지해 오버레이를 덮고 자동 재시도(10분 3회) 후 수동 버튼을 남긴다.
 - **치지직 내부 API**: 응답 형태가 바뀔 수 있어 `fetchFollowings` 는 `channelId` 를 가진 객체를 넓게 찾는다. 팔로우 목록(`/service/v1/channels/followings/live`, `/followings`)은 로그인 필요.
 - **광고 자동 건너뛰기(`adskip.js`)는 `button.btn_skip` 에서 `hide` 클래스가 벗겨지는 순간 `click()` 한다.** 광고 DOM(`.skip_area`, `.pzp-pc--adbreak`)은 광고 중에만 존재하고 끝나면 제거된다(2026-09 STP 확인). content script 는 최상위 프레임에서만 돌므로 상황실 타일은 `onTileLoad` 에서 `WT.adSkip.watch(contentDocument)` 로 부모가 등록한다. 설정 기본값이 켜짐인 유일한 토글이라 `SETTINGS` 항목의 `def: true` 로 표현한다.
@@ -75,7 +75,7 @@ background에 위임하는 공용 서비스를 추가할 때는 메시지 이름
 ## 컨벤션
 
 - **로깅**: 격리 세계에서는 `WT.log(tag, ...)`를 쓴다(디버그 플래그 중앙 관리). MAIN 세계(`page-script.js`)는 격리 세계와 분리되어 있어 자체 플래그 `window._wtDebug`로 `[WT]` 로그를 낸다.
-- **설정 추가**: 새 토글은 `room.js`의 `SETTINGS` 표 + `_locales`(ko 먼저, en) + 해당 기능 모듈의 `WT.watch`/`WT.load` 3곳을 함께 수정한다. 토글이 아닌 설정(예: 채팅 위치)은 `buildSettingsDrawer` 에 행을 직접 만들고 `render()` 에서 현재 값을 표시한다. 세그먼트 버튼 갱신 시 선택자 범위를 한정할 것(`.wt-seg-btn` 전체를 잡으면 다른 세그먼트를 덮어쓴다 — 겪은 버그). 팝업은 없다.
+- **설정 추가**: 새 토글은 `room.js`의 `SETTINGS` 표 + `_locales`(ko 먼저, en) + 해당 기능 모듈의 `WT.watch`/`WT.load` 3곳을 함께 수정한다. 상황실 전용 설정(예: 채팅 서랍 좌/우 다중 선택 세그먼트)은 `buildSettingsDrawer` 에 행을 직접 만들고 `render()` 에서 현재 값을 표시한다. 세그먼트 버튼 갱신 시 선택자 범위를 한정할 것(`.wt-seg-btn` 전체를 잡으면 다른 세그먼트를 덮어쓴다 — 겪은 버그). 팝업은 없다.
 - **Git/브랜치**: 브랜치 이름은 기능 중심으로 짓고, 이름에 `phase`라는 단어를 쓰지 않는다.
 
 ## 범위 메모

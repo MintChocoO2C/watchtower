@@ -58,7 +58,7 @@
         status: {},     // channelId -> { open, title, viewers }
         errors: {},     // channelId -> { count, last }  재생 실패 자동 재시도 기록
         focus: null,    // 집중 보기 중인 channelId (그 타일만 크게, 나머지는 음소거)
-        chatSide: "right", // 집중 보기 채팅 서랍 위치: "left" | "right"
+        chatSides: { left: false, right: true }, // 집중 보기 채팅 서랍: 왼쪽·오른쪽을 각각 켜고 끈다 (둘 다 켜면 양쪽, 둘 다 끄면 없음)
         soundBackup: null, // 집중 보기 들어가기 전 소리 상태 (나올 때 복원)
         cols: "auto",   // "auto" | 1..4
         fit: false,     // true면 스크롤 없이 모든 타일이 한 화면에 들어오도록 크기를 줄인다
@@ -67,6 +67,7 @@
     };
     const tiles = new Map();  // channelId -> { root, iframe, styled }
     const COL_CHOICES = ["auto", 1, 2, 3, 4];
+    const CHAT_SIDES = ["left", "right"];
     const PLAYBACK_CHECK_MS = 5_000;   // 재생 실패 감시 주기
     const RETRY_DELAY_MS = 4_000;      // 실패 감지 후 자동 재시도까지 대기
     const RETRY_MAX = 3;               // 이 횟수를 넘으면 자동 재시도를 멈추고 수동 버튼만 남긴다
@@ -128,11 +129,12 @@
         // 패널/서랍 바깥을 누르면 닫히게 하는 투명 배경
         const backdrop = el("div", { class: "wt-backdrop", id: "wt-backdrop", hidden: "", onclick: closeOverlays });
         // 채팅 서랍(집중 보기 전용): 치지직 팝업 채팅(/live/<id>/chat)을 담고, 가장자리에 숨어 있다가
-        // 마우스를 가져가면 안쪽으로 나온다. 위치(좌/우)는 설정에서 바꾼다.
-        const chat = el("div", { class: "wt-chatdock", id: "wt-chatdock", hidden: "", onpointerenter: openChatDock, onpointerleave: scheduleCloseChatDock }, [
+        // 마우스를 가져가면 안쪽으로 나온다. 왼쪽·오른쪽 서랍을 각각 만들어 두고 설정에서 켜고 끈다(둘 다 켜면 양쪽).
+        const chats = CHAT_SIDES.map(side => el("div", { class: "wt-chatdock", id: `wt-chatdock-${side}`, "data-side": side, hidden: "",
+            onpointerenter: openChatDock, onpointerleave: scheduleCloseChatDock }, [
             el("div", { class: "wt-chatdock-tab", title: t("roomChatTab") }, [chatIcon()]),
-            el("iframe", { id: "wt-chat-frame", title: t("roomChatTab"), src: "about:blank" }),
-        ]);
+            el("iframe", { class: "wt-chat-frame", title: t("roomChatTab"), src: "about:blank" }),
+        ]));
         const drawer = buildSettingsDrawer();
         const panel = el("div", { class: "wt-panel", id: "wt-follow", hidden: "" });
         // 집중 보기 진입/이동 안내 토스트: 채널명과 단축키를 잠깐 보여 주고 사라진다 (영상을 상시 가리지 않는다)
@@ -140,7 +142,7 @@
             el("span", { class: "wt-focus-toast-name", id: "wt-focus-toast-name" }),
             el("span", { class: "wt-focus-toast-hint", text: t("roomFocusToastHint") }),
         ]);
-        body.append(bar, el("div", { class: "wt-body" }, [scroll, chat, focusToast]), shelf, backdrop, drawer, panel);
+        body.append(bar, el("div", { class: "wt-body" }, [scroll, ...chats, focusToast]), shelf, backdrop, drawer, panel);
     }
 
     // 열 수(자동/1~4) + 화면에 맞춤 토글
@@ -167,11 +169,25 @@
     // 예외: 상단 바·선반으로 나간 경우는 열린 채 둔다(짧은 유예 안에 그쪽 pointerenter 가 오면 취소).
     // 서랍 이탈은 부모 문서의 pointerleave 로 잡으므로 채팅 iframe → 영상 iframe 으로 바로 넘어가도 닫힌다.
     // 채팅 입력 중이면 CSS :focus-within 이 열어 둔다.
+    // 서랍이 양쪽에 있어도 한 번에 하나만 열리고 타이머도 하나다(한쪽에서 다른 쪽으로 옮기면 pointerenter 가 취소한다).
     let chatCloseTimer = null;
-    function openChatDock() { clearTimeout(chatCloseTimer); document.getElementById("wt-chatdock")?.classList.add("open"); }
-    function closeChatDock() { clearTimeout(chatCloseTimer); document.getElementById("wt-chatdock")?.classList.remove("open"); }
+    const chatDocks = () => [...document.querySelectorAll(".wt-chatdock")];
+    function openChatDock(e) {
+        clearTimeout(chatCloseTimer);
+        for (const d of chatDocks()) d.classList.toggle("open", d === e.currentTarget);
+    }
+    function closeChatDock() { clearTimeout(chatCloseTimer); for (const d of chatDocks()) d.classList.remove("open"); }
     function scheduleCloseChatDock() { clearTimeout(chatCloseTimer); chatCloseTimer = setTimeout(closeChatDock, 120); }
     function keepChatDock() { clearTimeout(chatCloseTimer); }
+    // 설정용 아이콘: 화면 테두리에 채팅 패널이 왼쪽/오른쪽에 붙은 모양
+    function sideIcon(side) {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 18 13"); svg.setAttribute("width", "18"); svg.setAttribute("height", "13"); svg.setAttribute("aria-hidden", "true");
+        const x = side === "left" ? 1.5 : 10.5;
+        svg.innerHTML = `<rect x="1" y="1" width="16" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/>`
+            + `<rect x="${x}" y="1.5" width="6" height="10" rx="1.3" fill="currentColor"/>`;
+        return svg;
+    }
     function focusIcon() {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "13"); svg.setAttribute("height", "13");
@@ -193,18 +209,23 @@
                 el("button", { class: "wt-btn", type: "button", onclick: toggleSettings, text: t("roomClose") }),
             ]),
         ]);
-        // 상황실 전용 설정: 채팅 서랍 위치
+        // 상황실 전용 설정: 채팅 서랍. 왼쪽/오른쪽 버튼을 각각 누를 수 있는(다중 선택) 세그먼트 —
+        // 하나만 켜면 그쪽, 둘 다 켜면 양쪽, 둘 다 끄면 서랍 없음. 현재 상태는 설명 줄에 쓴다.
         drawer.appendChild(el("div", { class: "wt-set-head", text: t("roomTitle") }));
-        const sideSeg = el("div", { class: "wt-seg", id: "wt-chat-side", role: "group", "aria-label": t("roomChatSide") });
-        for (const side of ["left", "right"]) {
-            sideSeg.appendChild(el("button", { class: "wt-seg-btn", type: "button", "data-side": side,
-                text: t(side === "left" ? "roomChatLeft" : "roomChatRight"),
-                onclick: () => { state.chatSide = side; browser.storage.local.set({ roomChatSide: side }).catch(() => {}); render(); } }));
+        const sideSeg = el("div", { class: "wt-seg wt-chat-seg", id: "wt-chat-sides", role: "group", "aria-label": t("roomChatDock") });
+        for (const side of CHAT_SIDES) {
+            const key = side === "left" ? "roomChatLeft" : "roomChatRight";
+            sideSeg.appendChild(el("button", { class: "wt-seg-btn", type: "button", "data-side": side, title: t(key), "aria-label": t(key), "aria-pressed": "false",
+                onclick: () => {
+                    state.chatSides[side] = !state.chatSides[side];
+                    browser.storage.local.set({ roomChatSides: { ...state.chatSides } }).catch(() => {});
+                    render();
+                } }, [sideIcon(side), el("span", { text: t(key) })]));
         }
-        drawer.appendChild(el("div", { class: "wt-set-row" }, [
+        drawer.appendChild(el("div", { class: "wt-set-row wt-set-stack" }, [
             el("span", { class: "wt-set-text" }, [
-                el("span", { class: "wt-set-label", text: t("roomChatSide") }),
-                el("span", { class: "wt-set-desc", id: "wt-chat-side-desc", text: t("roomChatSideDesc") }),
+                el("span", { class: "wt-set-label", text: t("roomChatDock") }),
+                el("span", { class: "wt-set-desc", id: "wt-chat-sides-desc", text: t("roomChatDockDesc") }),
             ]),
             sideSeg,
         ]));
@@ -280,11 +301,15 @@
 
     // --- 채널 목록 저장/복원 ---
     async function loadState() {
-        const r = await WT.load(["roomChannels", "roomSound", "roomLayout", "roomChatSide", "roomLevelerEnabled", "roomLevelerTarget", "roomLevelerProfiles"]);
+        const r = await WT.load(["roomChannels", "roomSound", "roomLayout", "roomChatSides", "roomChatSide", "roomLevelerEnabled", "roomLevelerTarget", "roomLevelerProfiles"]);
         // 프로파일은 측정 방식 버전(v)이 같은 것만 쓴다 (v2: K-가중 라우드니스. 그 전 RMS 값은 버린다)
         state.levelProfiles = Object.fromEntries(Object.entries(r.roomLevelerProfiles && typeof r.roomLevelerProfiles === "object" ? r.roomLevelerProfiles : {})
             .filter(([, v]) => v && v.v === LEVEL_PROFILE_VERSION));
-        state.chatSide = r.roomChatSide === "left" ? "left" : "right";
+        // roomChatSides: { left, right }. 예전 단일 값(roomChatSide: "left"|"right")만 있으면 그 쪽 하나만 켠 것으로 옮긴다
+        const cs = r.roomChatSides;
+        state.chatSides = cs && typeof cs === "object"
+            ? { left: cs.left === true, right: cs.right === true }
+            : { left: r.roomChatSide === "left", right: r.roomChatSide !== "left" };
         state.leveler.enabled = r.roomLevelerEnabled === true;
         state.leveler.target = clampTarget(r.roomLevelerTarget);
         // 다른 탭/창에서 바뀐 경우용. 자기 탭의 조작은 서랍에서 바로 적용한다(relay 가 자기 탭으로 돌아오지 않을 수 있다).
@@ -335,17 +360,26 @@
             : (state.channels.length ? `${n}/${state.channels.length} · ${cols}${t("roomCols")}` : "");
         document.body.classList.toggle("focus-mode", state.focus !== null);
         document.getElementById("wt-mode").hidden = !focused;
-        const dock = document.getElementById("wt-chatdock");
-        dock.dataset.side = state.chatSide;
-        for (const b of document.querySelectorAll("#wt-chat-side .wt-seg-btn")) b.setAttribute("aria-pressed", String(b.dataset.side === state.chatSide));
-        const sideDesc = document.getElementById("wt-chat-side-desc");
-        if (sideDesc) sideDesc.textContent = `${t("roomChatSideDesc")} · ${t("roomCurrent")}: ${t(state.chatSide === "left" ? "roomChatLeft" : "roomChatRight")}`;
-        const frame = document.getElementById("wt-chat-frame");
-        const chatUrl = focused ? `${location.origin}/live/${focused.id}/chat` : "about:blank";
-        if (frame.src !== chatUrl) frame.src = chatUrl;   // 채널이 바뀔 때만 다시 불러온다
-        dock.hidden = !focused;
+        // 채팅 서랍: 켜진 쪽만 보이고, 꺼진 쪽은 채팅 iframe 도 내려서 부하를 안 준다
+        for (const side of CHAT_SIDES) {
+            const dock = document.getElementById(`wt-chatdock-${side}`);
+            const on = !!focused && state.chatSides[side] === true;
+            const frame = dock.querySelector(".wt-chat-frame");
+            const chatUrl = on ? `${location.origin}/live/${focused.id}/chat` : "about:blank";
+            if (frame.src !== chatUrl) frame.src = chatUrl;   // 채널이 바뀔 때만 다시 불러온다
+            dock.hidden = !on;
+            if (!on) dock.classList.remove("open");
+        }
         if (!focused) closeChatDock();
-        // 열 수 세그먼트만 (채팅 위치 세그먼트도 같은 .wt-seg-btn 을 쓰므로 범위를 한정한다)
+        // 설정 서랍의 채팅 세그먼트(다중 선택)와 현재 상태 문구
+        for (const b of document.querySelectorAll("#wt-chat-sides .wt-seg-btn")) b.setAttribute("aria-pressed", String(state.chatSides[b.dataset.side] === true));
+        const sidesDesc = document.getElementById("wt-chat-sides-desc");
+        if (sidesDesc) {
+            const { left, right } = state.chatSides;
+            const now = left && right ? "roomChatBoth" : left ? "roomChatLeft" : right ? "roomChatRight" : "roomChatNone";
+            sidesDesc.textContent = `${t("roomChatDockDesc")} · ${t("roomCurrent")}: ${t(now)}`;
+        }
+        // 열 수 세그먼트만 (채팅 세그먼트도 같은 .wt-seg-btn 을 쓰므로 범위를 한정한다)
         for (const b of document.querySelectorAll(".wt-layout .wt-seg-btn")) {
             b.setAttribute("aria-pressed", String(b.dataset.cols === String(state.cols)));
         }
@@ -1134,10 +1168,12 @@
         applyLevelerSetting();
         document.addEventListener("keydown", (e) => { if (handleRoomKey(e)) e.preventDefault(); });
         // 채팅 서랍 iframe 안에서도(입력창 밖) 같은 단축키가 통하게. 채널이 바뀌어 다시 불러오면 load 가 또 와서 새 문서에 붙는다.
-        document.getElementById("wt-chat-frame")?.addEventListener("load", (e) => {
-            try { e.target.contentDocument?.addEventListener("keydown", (ke) => { if (handleRoomKey(ke)) { ke.preventDefault(); ke.stopImmediatePropagation(); } }, true); }
-            catch (_) { /* about:blank 나 교차 출처면 무시 */ }
-        });
+        for (const frame of document.querySelectorAll(".wt-chat-frame")) {
+            frame.addEventListener("load", (e) => {
+                try { e.target.contentDocument?.addEventListener("keydown", (ke) => { if (handleRoomKey(ke)) { ke.preventDefault(); ke.stopImmediatePropagation(); } }, true); }
+                catch (_) { /* about:blank 나 교차 출처면 무시 */ }
+            });
+        }
         WT.log("room", "상황실 시작", state.channels.length, "채널");
     }
 

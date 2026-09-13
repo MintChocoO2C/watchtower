@@ -197,8 +197,11 @@
 .wt-chatdock[data-side="right"] iframe { border-radius: 0 0 0 6px; }
 .wt-chatdock[data-side="left"]  iframe { border-radius: 0 0 6px 0; }
 @media (prefers-reduced-motion: reduce) { .wt-chatdock { transition: none; } }
-/* 설정 서랍 안 세그먼트는 한 줄에 */
-.wt-set-row .wt-seg { flex-shrink: 0; }
+/* 설정 서랍의 채팅 세그먼트(다중 선택): 왼쪽/오른쪽 버튼이 한 줄을 반씩 나눠 갖고, 켜진 쪽은 강조색 */
+.wt-chat-seg { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
+.wt-chat-seg .wt-seg-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 7px 10px; }
+.wt-chat-seg .wt-seg-btn svg { flex-shrink: 0; opacity: .55; transition: opacity .15s ease; }
+.wt-chat-seg .wt-seg-btn:hover svg, .wt-chat-seg .wt-seg-btn[aria-pressed="true"] svg { opacity: 1; }
 /* 슬라이더 행: 설명 아래에 슬라이더가 한 줄 전체로 */
 .wt-set-row.wt-set-stack { flex-direction: column; align-items: stretch; gap: 6px; cursor: default; }
 .wt-set-row input[type="range"] { width: 100%; margin: 0; accent-color: var(--wt-accent); }
