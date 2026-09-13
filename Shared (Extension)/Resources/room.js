@@ -257,7 +257,11 @@
             drawer.appendChild(el("div", { class: "wt-set-head", text: t(group.section) }));
             for (const item of group.items) {
                 const input = el("input", { type: "checkbox", "data-key": item.key });
-                input.addEventListener("change", () => browser.storage.local.set({ [item.key]: input.checked }));
+                // 저장 뒤 같은 탭의 구독자(예: 광고 건너뛰기)에게도 바로 알린다 — relay 는 자기 탭으로 안 돌아올 수 있다
+                input.addEventListener("change", () => {
+                    const changes = { [item.key]: { newValue: input.checked } };
+                    browser.storage.local.set({ [item.key]: input.checked }).then(() => WT.notify?.(changes)).catch(() => {});
+                });
                 drawer.appendChild(el("label", { class: "wt-set-row" }, [
                     el("span", { class: "wt-set-text" }, [
                         el("span", { class: "wt-set-label", text: t(item.label) }),

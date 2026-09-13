@@ -49,6 +49,7 @@ content(격리)와 page(MAIN) 스크립트는 메시지 패싱이 아니라 **`d
 - `WT.log(tag, ...args)` — `debugEnabled`가 켜졌을 때만 `[WT][tag]`로 출력 (디버그 플래그 중앙 관리)
 - `WT.load(keys)` — `storage.local.get` 래퍼 (Promise)
 - `WT.watch(keys, cb)` — 해당 키가 바뀌면 `cb(changes)` 호출 (storageChanged relay를 한 곳에서 구독해 팬아웃)
+- `WT.notify(changes)` — 자기 탭에서 설정을 바꾼 직후 같은 탭의 구독자에게 즉시 전달. **relay 는 자기 탭으로 돌아오지 않을 수 있으므로**(상황실에서 광고 건너뛰기를 꺼도 그 탭에선 계속 동작하던 버그) 설정을 쓰는 쪽은 `set` 뒤에 이걸 부른다. 구독자 처리는 멱등이어야 한다.
 
 background에 위임하는 공용 서비스를 추가할 때는 메시지 이름을 기능 중립적으로(`wt:*`) 짓는다. **특정 기능 이름으로 공용 서비스를 명명하지 말 것** — 여러 기능이 같은 서비스를 동등하게 사용할 수 있어야 한다.
 
