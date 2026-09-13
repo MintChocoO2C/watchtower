@@ -13,6 +13,10 @@
 (() => {
     "use strict";
     if (location.pathname !== "/wt-room") return;
+    // 재주입 가드: Safari 는 확장을 다시 빌드·등록하거나 껐다 켜면 이미 열린 탭에도 content script 를 다시 주입한다.
+    // 옛 인스턴스의 폴링·타이머가 살아 있는 채로 새 인스턴스가 문서를 다시 만들면 타일이 겹치고 설정 표시가 흐트러진다.
+    // buildDocument 가 <html data-wt-room> 을 남기므로, 그 표시가 있으면 새 인스턴스는 시작하지 않는다(새 코드는 탭 새로고침으로).
+    if (document.documentElement.hasAttribute("data-wt-room")) { console.info("[WT][room] 이미 상황실 인스턴스가 있어 재주입을 건너뜀"); return; }
 
     // 치지직 SPA 로딩을 여기서 끊는다 — 부모 문서에서는 치지직 JS가 돌 필요가 없다.
     window.stop();
@@ -92,6 +96,7 @@
         // 앞쪽의 빈 body 를 가리킨다(그 body 에 스타일이 붙으면 진짜 내용이 화면 밖으로 밀려 검은 화면이 된다).
         // 그래서 파서가 만들어 준 head/body 를 그대로 채우고, 혹시 없으면 그때만 만든다.
         document.documentElement.innerHTML = "";
+        document.documentElement.setAttribute("data-wt-room", "");   // 이 문서에 상황실 인스턴스가 있다는 표시 (재주입 가드)
         document.documentElement.lang = navigator.language.startsWith("ko") ? "ko" : "en";
         let head = document.head;
         if (!head) { head = el("head"); document.documentElement.prepend(head); }
@@ -278,7 +283,11 @@
         const drawer = document.getElementById("wt-drawer");
         const open = !drawer.classList.contains("open");
         closeOverlays();
-        if (open) { drawer.classList.add("open"); document.getElementById("wt-backdrop").hidden = false; }
+        if (open) {
+            drawer.classList.add("open"); document.getElementById("wt-backdrop").hidden = false;
+            syncSettingsInputs().catch(() => {});   // 열 때마다 저장값을 다시 읽어 표시
+            renderLevelerSettings();
+        }
     }
     function closeOverlays() {
         document.getElementById("wt-drawer").classList.remove("open");
@@ -286,7 +295,9 @@
         document.getElementById("wt-backdrop").hidden = true;
     }
 
-    async function loadSettings() {
+    // 토글 표시를 저장값과 맞춘다. 처음 로드 때와 서랍을 열 때마다 부른다 — relay 가 자기 탭에 안 오거나
+    // 재주입으로 흐트러져도 서랍을 열면 저장값 그대로 보이게.
+    async function syncSettingsInputs() {
         const items = SETTINGS.flatMap(g => g.items);
         const keys = items.map(i => i.key);
         const def = Object.fromEntries(items.map(i => [i.key, i.def === true]));   // 저장된 값이 없을 때의 기본값
@@ -295,6 +306,13 @@
             const input = document.querySelector(`input[data-key="${key}"]`);
             if (input) input.checked = r[key] ?? def[key];
         }
+        WT.log("room", "설정 표시 동기화", r);
+    }
+    async function loadSettings() {
+        const items = SETTINGS.flatMap(g => g.items);
+        const keys = items.map(i => i.key);
+        const def = Object.fromEntries(items.map(i => [i.key, i.def === true]));
+        await syncSettingsInputs();
         WT.watch(keys, (c) => {
             for (const key of Object.keys(c)) {
                 const input = document.querySelector(`input[data-key="${key}"]`);

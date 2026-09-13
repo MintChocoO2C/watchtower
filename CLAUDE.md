@@ -62,6 +62,8 @@ background에 위임하는 공용 서비스를 추가할 때는 메시지 이름
 ### 상황실(`room.js`) 설계 메모
 
 - **문서 교체**: `document_start` 에서 `window.stop()` 으로 치지직 SPA 로딩을 끊고 `documentElement.innerHTML = ""` 로 비운다. **이때 프래그먼트 파서가 빈 `<head>`/`<body>` 를 자동으로 만든다.** 새로 만들어 append 하면 둘씩 생기고 `document.body` 는 빈 쪽을 가리켜 화면이 검게 된다(실제로 겪은 회귀). 파서가 만든 head/body 를 채워 쓴다.
+- **한 문서에 인스턴스는 하나**: Safari 는 확장을 다시 빌드·등록하거나 껐다 켜면 이미 열린 탭에도 content script 를 다시 주입한다. 옛 인스턴스의 폴링이 살아 있으면 타일이 겹치고 설정 표시가 흐트러진다. `buildDocument` 가 `<html data-wt-room>` 을 표시하고, 그 표시가 있으면 새 인스턴스는 시작하지 않는다. 새 코드는 탭 새로고침으로 반영한다.
+- **설정 서랍 표시**: 열 때마다 `syncSettingsInputs()` 로 저장값을 다시 읽어 토글을 맞춘다(relay 가 자기 탭에 안 올 수 있고, 표시는 항상 저장값과 같아야 한다).
 - **타일**: 채널마다 같은 출처 iframe(`/live/<id>`). 부모가 `contentDocument` 에 플레이어만 남기는 CSS(`#live_player_layout` 훅, 조상의 transform/position 해제)를 주입한다. **타일은 만들어진 뒤 DOM 위치를 옮기지 않는다** — iframe 을 떼었다 붙이면 재로드되므로 순서는 CSS `order` 로만(추가·삭제·스왑 공통).
 - **소리**: 의도는 `state.sounds`(여러 개), 실제는 각 iframe 의 `video.muted`(`volumechange` capture 구독으로 플레이어 자체 버튼 조작도 따라감). 우리 UI 에는 소리 버튼이 없고 테두리 발광으로만 표시한다. 자동 재생은 음소거에서만 되므로 `navigator.userActivation.hasBeenActive` 가 있을 때만 풀고, 없으면 `sound-pending` 으로 두었다가 첫 `pointerdown` 에 적용한다. 우리가 되돌린 음소거는 `tile.autoMuting` 으로 표시해 사용자 조작으로 치지 않는다. **음소거 타일에 `play()` 를 부르지 말 것**(플레이어의 광고/준비 단계가 멈춘다).
 - **종료된 방송**: 60초 폴링(`/service/v2/channels/<id>/live-detail`, 로그인 불필요)에서 `open === false` 면 격자에서 빼고 iframe 을 내린 뒤 하단 선반(`.wt-shelf`)에 칩으로 둔다. 다시 켜지면 원래 순서 자리에 타일을 새로 만든다. 팔로우 목록에서 추가할 때는 목록이 준 켜짐/종료를 먼저 반영하고 그린다(격자에 잠깐 떴다가 밀려나지 않게).
