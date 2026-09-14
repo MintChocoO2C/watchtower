@@ -76,6 +76,9 @@
     const RETRY_DELAY_MS = 4_000;      // 실패 감지 후 자동 재시도까지 대기
     const RETRY_MAX = 3;               // 이 횟수를 넘으면 자동 재시도를 멈추고 수동 버튼만 남긴다
     const RETRY_WINDOW_MS = 10 * 60_000;
+    const STALL_MS = 30_000;           // 플레이어가 로딩 상태이거나 영상이 이만큼 앞으로 가지 않으면 "멈춤"(무한 로딩)으로 보고 다시 불러온다
+    const AUTOSTART_MS = 5_000;        // 재생 전 화면(재생 버튼만 남은 상태)이 이만큼 이어지면 대신 눌러 준다
+    const AUTOSTART_MAX = 3;           // 문서 하나당 대신 눌러 주는 횟수 상한
     // 부하 완화: 타일 iframe(치지직 SPA 전체)은 한꺼번에 띄우지 않고 몇 개씩 순서대로 연다.
     const LOAD_CONCURRENCY = 3;        // 동시에 로드 중인 iframe 수
     const LOAD_SLOT_MS = 6_000;        // load 이벤트가 안 와도 이 시간이 지나면 다음 타일을 연다
@@ -641,6 +644,8 @@
         if (!doc) { WT.log("room", "iframe 문서 접근 불가", id); return; }
         if (!tile.started || /^about:/.test(doc.URL || "")) return;   // src 를 주기 전의 about:blank load 는 무시 (리다이렉트된 문서는 그대로 처리)
         tile.releaseLoad?.();                                            // 다음 타일이 열리게 슬롯을 돌려준다
+        tile.lastTime = -1; tile.stallSince = 0;                         // 새 문서의 currentTime 은 0 부터 — 이전 값과 비교하면 멈춤으로 오인한다
+        tile.beforeplaySince = 0; tile.autoStartTries = 0;
         const style = doc.createElement("style");
         style.id = "wt-player-only";
         style.textContent = PLAYER_ONLY_CSS;
@@ -1220,20 +1225,51 @@
     }
 
     // --- 재생 실패 감시 ---
-    // 치지직 플레이어가 "미디어 재생이 실패했습니다" 를 띄우거나 video.error 가 생기면
-    // 우리 오버레이를 덮고 자동으로 다시 불러온다(10분에 3회까지). 그 뒤로는 수동 버튼만.
-    function detectPlaybackError(id) {
+    // 재생 문제 감지. 돌려주는 값: "error"(플레이어가 실패를 띄움) · "stall"(무한 로딩) · null(정상).
+    // - error: video.error 가 있거나 플레이어가 "미디어 재생이 실패했습니다" 를 띄운 경우.
+    // - stall: 플레이어 루트에 로딩 상태(pzp-pc--loading, 가운데 로고 애니메이션이 도는 상태)가 붙어 있거나
+    //   video.currentTime 이 앞으로 가지 않는 채 STALL_MS 가 지난 경우. 광고 중(pzp-pc--adbreak)과
+    //   사용자가 직접 일시정지한 경우(paused 인데 이미 얼마간 재생됐고 로딩 상태는 아님)는 세지 않는다.
+    //   탭이 숨겨진 동안은 checkPlayback 자체가 쉬므로 그 시간은 포함되지 않는다.
+    // 둘 다 오버레이를 덮고 자동으로 다시 불러온다(10분에 3회까지). 그 뒤로는 수동 버튼만.
+    function detectPlaybackProblem(id) {
         const tile = tiles.get(id);
         const doc = tile?.iframe.contentDocument;
-        if (!doc || !tile.styled) return false;
+        if (!doc || !tile.styled) return null;
         const v = doc.querySelector("video");
-        if (v?.error) return true;
+        if (v?.error) return "error";
         // 영상이 멈추지 않고 흘러가고 있으면 정상이다 — innerText 는 레이아웃을 강제하므로 그때는 읽지 않는다
-        if (v && !v.paused && v.currentTime > (tile.lastTime ?? -1)) { tile.lastTime = v.currentTime; return false; }
+        if (v && !v.paused && v.currentTime > (tile.lastTime ?? -1)) { tile.lastTime = v.currentTime; tile.stallSince = 0; return null; }
         if (v) tile.lastTime = v.currentTime;
         const layout = doc.getElementById("live_player_layout");
         const text = layout?.innerText || "";
-        return /재생이 실패|재생할 수 없|playback failed|cannot be played/i.test(text);
+        if (/재생이 실패|재생할 수 없|playback failed|cannot be played/i.test(text)) return "error";
+        const cls = doc.querySelector(".pzp")?.classList;
+        const inAd = !!cls?.contains("pzp-pc--adbreak");
+        const userPaused = !!v && v.paused && v.currentTime > 0 && !cls?.contains("pzp-pc--loading");
+        if (inAd || userPaused) { tile.stallSince = 0; tile.beforeplaySince = 0; return null; }
+        if (cls?.contains("pzp-pc--beforeplay")) { tile.stallSince = 0; autoStart(id, doc, v); return null; }   // 다시 불러와도 같은 화면이 나오므로 멈춤으로 치지 않는다
+        tile.beforeplaySince = 0;
+        tile.stallSince ||= Date.now();
+        return Date.now() - tile.stallSince >= STALL_MS ? "stall" : null;
+    }
+    // 재생 전 화면(pzp-pc--beforeplay, 가운데 재생 버튼과 00:00): 플레이어가 소리 켜진 채 자동 재생을 시도하다 Safari 에 막히면
+    // 여기서 멈춘다. 플레이어가 음소거 설정을 자체 저장하므로 어느 타일에서든 플레이어 버튼으로 소리를 켠 적이 있으면
+    // 그 뒤 새로 여는 타일마다 생긴다. AUTOSTART_MS 이상 이어지면 음소거를 걸고(음소거면 자동 재생이 허용된다) 플레이어의
+    // 재생 버튼을 대신 누른다. 소리 의도(state.sounds)는 지우지 않는다 — pending 으로 두면 첫 클릭 때 applySound 가 다시 켠다.
+    // 방금 열린 문서가 스스로 재생을 시작하기 전에 끼어들지 않도록 한 번 본 뒤 시간이 지나야 누르고, 문서당 AUTOSTART_MAX 번까지만.
+    function autoStart(id, doc, v) {
+        const tile = tiles.get(id);
+        tile.beforeplaySince ||= Date.now();
+        if (Date.now() - tile.beforeplaySince < AUTOSTART_MS || (tile.autoStartTries || 0) >= AUTOSTART_MAX) return;
+        const btn = doc.querySelector("button.pzp-pc__brand-playback-button");
+        if (!btn) return;
+        tile.autoStartTries = (tile.autoStartTries || 0) + 1;
+        tile.beforeplaySince = 0;   // 눌렀는데도 그대로면 다음 번엔 다시 AUTOSTART_MS 를 기다린다
+        if (v && !v.muted) { tile.autoMuting = true; v.muted = true; tile.autoMuting = false; }
+        btn.click();
+        if (state.sounds.has(id)) tile.root.classList.add("sound-pending");
+        WT.log("room", "재생 전 화면 → 음소거 후 재생 버튼 대신 누름", id.slice(0, 6), tile.autoStartTries);
     }
     function checkPlayback() {
         if (document.hidden) return;   // 안 보는 탭에서는 감시하지 않는다 (돌아오면 다음 주기에 이어서)
@@ -1241,10 +1277,12 @@
             const id = ch.id;
             const tile = tiles.get(id);
             if (!tile || tile.root.classList.contains("offline")) continue;
-            const failed = detectPlaybackError(id);
-            if (!failed) { if (tile.root.classList.contains("error")) tile.root.classList.remove("error"); continue; }
+            const problem = detectPlaybackProblem(id);
+            if (!problem) { if (tile.root.classList.contains("error")) tile.root.classList.remove("error"); continue; }
             if (tile.root.classList.contains("error")) continue;   // 이미 처리 중
             tile.root.classList.add("error");
+            tile.root.querySelector(".wt-error-text").textContent = t(problem === "stall" ? "roomStalled" : "roomPlaybackFailed");
+            tile.stallSince = 0;
             const rec = state.errors[id] || { count: 0, last: 0 };
             if (Date.now() - rec.last > RETRY_WINDOW_MS) rec.count = 0;
             state.errors[id] = rec;
@@ -1255,7 +1293,7 @@
             } else {
                 sub.textContent = t("roomRetryGiveUp");
             }
-            WT.log("room", "재생 실패 감지", id.slice(0, 6), rec);
+            WT.log("room", problem === "stall" ? "멈춤(무한 로딩) 감지" : "재생 실패 감지", id.slice(0, 6), rec);
         }
     }
     function retryTile(id, manual) {
@@ -1266,6 +1304,7 @@
         rec.last = Date.now();
         state.errors[id] = rec;
         tile.styled = false;
+        tile.stallSince = 0;
         tile.root.classList.remove("ready", "error", "live");   // 다시 불러오는 동안 로딩 화면으로
         setLoadStep(id, 0); setLoadStep(id, 1);                  // 단계 표시도 처음(플레이어 여는 중)부터
         tile.root.querySelector(".wt-error-sub").textContent = "";
