@@ -148,6 +148,12 @@
     "roomRetryGiveUp": {
         "message": "Stopped auto-retrying. Press the button to try again"
     },
+    "roomAllOffline": {
+        "message": "No streams are live right now"
+    },
+    "roomAllOfflineHint": {
+        "message": "They will appear here as soon as one goes live"
+    },
     "roomOfflineShelf": {
         "message": "Offline — returns automatically when live again"
     },
