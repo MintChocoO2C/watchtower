@@ -79,7 +79,15 @@ background에 위임하는 공용 서비스를 추가할 때는 메시지 이름
 
 - **로깅**: 격리 세계에서는 `WT.log(tag, ...)`를 쓴다(디버그 플래그 중앙 관리). MAIN 세계(`page-script.js`)는 격리 세계와 분리되어 있어 자체 플래그 `window._wtDebug`로 `[WT]` 로그를 낸다.
 - **설정 추가**: 새 토글은 `room.js`의 `SETTINGS` 표 + `_locales`(ko 먼저, en) + 해당 기능 모듈의 `WT.watch`/`WT.load` 3곳을 함께 수정한다. 상황실 전용 설정(예: 채팅 서랍 좌/우 다중 선택 세그먼트)은 `buildSettingsDrawer` 에 행을 직접 만들고 `render()` 에서 현재 값을 표시한다. 세그먼트 버튼 갱신 시 선택자 범위를 한정할 것(`.wt-seg-btn` 전체를 잡으면 다른 세그먼트를 덮어쓴다 — 겪은 버그). 팝업은 없다.
-- **Git/브랜치**: 브랜치 이름은 기능 중심으로 짓고, 이름에 `phase`라는 단어를 쓰지 않는다.
+- **Git/브랜치**: Git Flow 접두어를 쓴다. 형식은 `<종류>/<범위>-<요약>`.
+  - `feature/` 새 기능·기능 확장 (예: `feature/room-empty-state`)
+  - `bugfix/` 버그 수정·회귀 복구 (예: `bugfix/adskip-missed-click`)
+  - `hotfix/` 배포된 버전이 깨져 바로 고쳐야 할 때 (예: `hotfix/room-black-screen`)
+  - `release/` 버전 올림·릴리스 준비 (예: `release/1.8`)
+  - `chore/` 빌드·설치 스크립트·문서·저장소 정리 등 기능과 무관한 작업 (예: `chore/repo-cleanup`, `chore/readme-leveler`)
+  - 범위(scope)는 모듈 이름을 쓴다: `room`(상황실), `adskip`, `speed`, `pip`, `yt`(유튜브 미니플레이어·Shorts), `capture`(프레임 캡처), `core`(`wt-core.js`·background), `build`. 여러 모듈에 걸치면 생략한다.
+  - 소문자 영어 kebab-case, 종류 뒤 부분은 2~4단어. `phase`, 날짜, 사람 이름은 넣지 않는다.
+  - 항상 `main` 에서 따고 PR 로 합친 뒤 브랜치를 지운다. 기능 브랜치 하나에 버그 수정을 끼워 넣지 말고 `bugfix/` 를 따로 딴다.
 
 ## 범위 메모
 
