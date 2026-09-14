@@ -172,6 +172,24 @@
     "roomFocusToastHint": {
         "message": "Esc 격자로 · ←/→ 다른 방송 · 숫자 키로 바로 가기"
     },
+    "roomFocusNoNeighbor": {
+        "message": "이 방송뿐이에요 · 옮길 다른 방송이 없어요"
+    },
+    "roomFocusPendingHint": {
+        "message": "멈추면 이 방송으로 옮겨요 · ←/→ 계속 고르기 · Esc 취소"
+    },
+    "roomFocusSwitching": {
+        "message": "옮기는 중…"
+    },
+    "roomFocusDelay": {
+        "message": "방향키 전환 대기"
+    },
+    "roomFocusDelayDesc": {
+        "message": "집중 보기에서 ←/→ 를 멈춘 뒤 이만큼 지나면 미리 보던 방송으로 옮긴다. 연타할 시간을 넉넉히 두려면 늘린다"
+    },
+    "roomSeconds": {
+        "message": "초"
+    },
     "roomFocusHint": {
         "message": "더블클릭 또는 Esc로 돌아가기 · ←/→ 다음 방송 · 숫자 키로 바로 가기"
     },

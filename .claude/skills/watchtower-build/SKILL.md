@@ -15,7 +15,7 @@ bash .claude/skills/watchtower-build/install.sh
 Launch Services 등록 해제(안 하면 Safari 확장 목록에 두 개로 보임) → `pluginkit -a`로 확장 재등록 → 호스트 앱 1회 실행.
 끝나면 사용자에게 **Safari 상황실 탭 새로고침**을 요청한다(확장 리소스는 새로고침해야 반영).
 
-- 서명: `Config/Local.xcconfig`(git 무시)의 `DEVELOPMENT_TEAM`을 쓴다. 없으면 `Config/Local.xcconfig.example`을 복사해 채운다.
+- 서명: `Config/Local.xcconfig`(git 무시)의 `DEVELOPMENT_TEAM`을 쓴다. 없으면 `Config/Local.xcconfig.example`을 복사해 채운다. **git 워크트리에는 이 파일이 없으므로** 스크립트가 본 저장소에서 복사해 온다(없이 빌드하면 adhoc 서명이 되어 Safari 가 확장을 켜 주지 않는다 — 겪은 사고).
 - pbxproj에 `DEVELOPMENT_TEAM`이 생기면 커밋하지 말고 되돌린다(공개 저장소).
 
 ## 2. 검증 원칙
