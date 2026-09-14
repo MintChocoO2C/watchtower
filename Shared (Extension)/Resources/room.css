@@ -140,7 +140,7 @@
 .wt-level:empty { display: none; }
 .wt-tile-top .wt-btn { background: rgba(0,0,0,.5); border-color: rgba(255,255,255,.2); color: #e9eaed; }
 .wt-remove { width: 22px; height: 20px; font-size: 14px; line-height: 1; }
-.wt-focus-btn { width: 22px; height: 20px; }
+.wt-focus-btn, .wt-reload-btn { width: 22px; height: 20px; }
 
 
 /* 집중 보기: 타일 하나가 격자 영역(.wt-body)을 채운다. 나머지는 자리에 두되 숨긴다 */

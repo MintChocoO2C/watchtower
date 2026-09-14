@@ -49,7 +49,7 @@ Watch several Chzzk channels on one screen without switching tabs.
 - **Loudness leveler**: enable it in the settings drawer. Tiles with sound show the applied volume in their hover bar, e.g. `♪ 79%`; `▲` means that stream is quieter than the target and pinned at 100% (if you see it often, lower the target and raise the system volume). Safari does not expose player audio to Web Audio, so the room fetches one lowest-quality segment of the same stream every 10–60 s and measures loudness from it. Turning it off restores the player volume.
 - **Chat**: in focus view a chat handle sits at the screen edge. Hover it and the chat slides in; move the mouse out of the chat and it hides again (it stays open while you are over the top bar or the shelf). It embeds Chzzk's pop-out chat, so you can type when signed in. Pick the edge (left/right) in the settings drawer.
 - **Live status**: checked every minute. Offline channels leave the grid and collect as small chips on a shelf at the bottom (removable there); when they go live again they return to their original spot automatically.
-- **Playback failure**: when the player fails, the room covers it and retries automatically (up to 3 times in 10 minutes), then leaves a `Retry` button.
+- **Playback failure**: when the player fails, the room covers it and retries automatically (up to 3 times in 10 minutes), then leaves a `Retry` button. If the player is stuck on its loading screen without being detected as failed, the reload button in the tile's hover bar reloads just that stream.
 - **Theme**: follows the system/browser light or dark setting.
 - Channel list, order, sound state, and layout are saved and restored next time.
 
