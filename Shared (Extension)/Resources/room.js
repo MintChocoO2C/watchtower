@@ -81,7 +81,7 @@
     const LOAD_SLOT_MS = 6_000;        // load 이벤트가 안 와도 이 시간이 지나면 다음 타일을 연다
     const STATUS_CONCURRENCY = 4;      // 상태 조회(live-detail) 동시 요청 수
     const BOOT_STATUS_TIMEOUT_MS = 6_000; // 첫 화면: 상태 조회가 이보다 오래 걸리면 아는 만큼으로 먼저 그린다
-    const LIVE_FALLBACK_MS = 8_000;    // iframe 로드 뒤 영상 재생 신호가 없어도 이 시간이 지나면 로딩 표시를 걷는다
+    const LIVE_FALLBACK_MS = 15_000;   // iframe 로드 뒤 영상 재생 신호가 없어도 이 시간이 지나면 로딩 화면을 걷는다(플레이어 안내 화면을 영영 가리지 않게)
 
     const el = (tag, attrs = {}, children = []) => {
         const n = document.createElement(tag);
@@ -392,15 +392,30 @@
         document.getElementById("wt-empty-hint").textContent = allOffline ? t("roomAllOfflineHint") : "";
     }
 
-    // 타일 로딩 표시: 아바타·채널명·스피너. 영상이 실제로 재생되기 전까지 검은 화면 대신 보여 준다.
-    // (첫 화면의 스켈레톤 타일과 실제 타일 위의 오버레이가 같은 모양이라 상태 조회 → 타일 생성 전환이 매끄럽다)
+    // 타일 로딩 화면: 아바타·채널명·진행 막대. 영상이 실제로 재생되기 전까지 검은 화면과 플레이어 스피너를 덮고,
+    // 그동안 무엇을 하고 있는지 단계 목록으로 보여 준다(steps 가 없으면 스켈레톤 타일 — 한 줄 안내만).
+    // 단계 표시는 CSS 가 타일의 data-step 을 보고 그린다(setLoadStep). 실제 타일과 스켈레톤이 같은 모양이라 전환이 매끄럽다.
+    const LOAD_STEPS = ["roomLoadOpen", "roomLoadConnect", "roomLoadStream"];   // 1: 플레이어 열기, 2: 방송 연결, 3: 영상 받기
     function tilePlaceholder(ch, text) {
         return el("div", { class: "wt-loading", "aria-hidden": "true" }, [
             ch.image ? el("img", { class: "wt-loading-avatar", src: ch.image, alt: "" }) : el("span", { class: "wt-loading-avatar wt-loading-dot" }),
             el("span", { class: "wt-loading-name", text: ch.name || ch.id.slice(0, 8) }),
-            el("span", { class: "wt-loading-spinner" }),
-            el("span", { class: "wt-loading-text", text }),
+            el("span", { class: "wt-loading-bar" }),
+            text ? el("span", { class: "wt-loading-text", text })
+                 : el("ul", { class: "wt-loading-steps" }, LOAD_STEPS.map(k => el("li", { text: t(k) }))),
         ]);
+    }
+    // 로딩 단계 표시를 올린다(내려가지는 않는다 — 신호 순서가 뒤섞여도 표시는 앞으로만). 0 은 처음으로 되돌림(다시 불러오기).
+    function setLoadStep(id, step) {
+        const tile = tiles.get(id);
+        if (!tile) return;
+        const cur = Number(tile.root.dataset.step || 0);
+        if (step !== 0 && step <= cur) return;
+        tile.root.dataset.step = step;
+        tile.root.querySelectorAll(".wt-loading-steps li").forEach((li, i) => {
+            li.classList.toggle("done", i + 1 < step);
+            li.classList.toggle("active", i + 1 === step);
+        });
     }
 
     // 첫 화면: 상태 조회가 끝나기 전에는 모든 채널을 스켈레톤 타일로 먼저 그린다(iframe 없음).
@@ -438,11 +453,12 @@
             tile.releaseLoad = release;
             setTimeout(release, LOAD_SLOT_MS);
             tile.iframe.src = `/live/${id}`;
+            setLoadStep(id, 1);
             WT.log("room", "타일 로드 시작", id.slice(0, 6), "대기", loadQueue.length);
         }
     }
 
-    // 영상이 실제로 나오기 시작했다 — 로딩 표시를 걷는다
+    // 영상이 실제로 나오기 시작했다 — 로딩 화면을 걷는다
     function markLive(id) {
         const tile = tiles.get(id);
         if (!tile || tile.root.classList.contains("live")) return;
@@ -604,7 +620,7 @@
                 el("button", { class: "wt-btn wt-icon wt-remove", type: "button", title: t("roomRemove"), "aria-label": t("roomRemove"), text: "×",
                     onclick: (e) => { e.stopPropagation(); removeChannel(ch.id); } }),
             ]),
-            tilePlaceholder(ch, t("roomTileLoading")),
+            tilePlaceholder(ch),
             el("div", { class: "wt-offline", text: t("roomOffline") }),
             el("div", { class: "wt-error" }, [
                 el("span", { class: "wt-error-text", text: t("roomPlaybackFailed") }),
@@ -630,6 +646,7 @@
         style.textContent = PLAYER_ONLY_CSS;
         (doc.head || doc.documentElement).appendChild(style);
         tile.styled = true;
+        setLoadStep(id, 2);   // 플레이어 페이지가 열렸다 → 방송 연결 중
         tile.root.classList.add("ready", "playing");
         tile.root.classList.remove("error");
         // 플레이어 자체 버튼으로 음소거를 풀거나 걸어도 우리 상태가 따라가도록 (capture: video 가 바뀌어도 잡힌다)
@@ -647,7 +664,12 @@
         // iframe 의 keydown 은 부모 문서로 올라가지 않는다.
         doc.addEventListener("keydown", (e) => { if (handleRoomKey(e)) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
         doc.addEventListener("pointerover", () => { if (state.focus === id) closeChatDock(); }, { capture: true, passive: true });
-        // 영상이 실제로 흘러나오면 로딩 표시를 걷는다. 신호가 끝내 안 와도(플레이어 안내 화면 등) 일정 시간 뒤엔 걷어서 플레이어를 가리지 않는다.
+        // 영상 메타데이터가 오면 마지막 단계(영상 받는 중)로. video 가 이미 만들어져 있었으면 바로 반영.
+        const onMeta = (e) => { if (e.target?.tagName === "VIDEO") setLoadStep(id, 3); };
+        doc.addEventListener("loadedmetadata", onMeta, { capture: true, passive: true });
+        doc.addEventListener("loadeddata", onMeta, { capture: true, passive: true });
+        if ((doc.querySelector("video")?.readyState ?? 0) >= 1) setLoadStep(id, 3);
+        // 영상이 실제로 흘러나오면 로딩 화면을 걷는다. 신호가 끝내 안 와도(플레이어 안내 화면 등) 일정 시간 뒤엔 걷어서 플레이어를 가리지 않는다.
         tile.root.classList.remove("live");
         doc.addEventListener("playing", (e) => { if (e.target?.tagName === "VIDEO") markLive(id); }, { capture: true, passive: true });
         doc.addEventListener("timeupdate", (e) => { if (e.target?.tagName === "VIDEO" && e.target.currentTime > 0) markLive(id); }, { capture: true, passive: true });
@@ -1244,7 +1266,8 @@
         rec.last = Date.now();
         state.errors[id] = rec;
         tile.styled = false;
-        tile.root.classList.remove("ready", "error", "live");   // 다시 불러오는 동안 로딩 표시로
+        tile.root.classList.remove("ready", "error", "live");   // 다시 불러오는 동안 로딩 화면으로
+        setLoadStep(id, 0); setLoadStep(id, 1);                  // 단계 표시도 처음(플레이어 여는 중)부터
         tile.root.querySelector(".wt-error-sub").textContent = "";
         reloadTile(id);
         WT.log("room", "다시 시도", id.slice(0, 6), manual ? "수동" : "자동", rec.count);
