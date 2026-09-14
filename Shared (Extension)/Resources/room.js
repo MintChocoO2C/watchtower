@@ -461,12 +461,13 @@
         }
     }
 
-    // 영상이 실제로 나오기 시작했다 — 로딩 화면을 걷는다
+    // 영상이 실제로 나오기 시작했다 — 로딩 화면을 걷는다. 미뤄 둔 소리 의도가 있으면 이제 적용한다(준비 단계에는 건드리지 않는다).
     function markLive(id) {
         const tile = tiles.get(id);
         if (!tile || tile.root.classList.contains("live")) return;
         clearTimeout(tile.liveTimer);
         tile.root.classList.add("live");
+        if (tile.root.classList.contains("sound-pending")) applySound(id);
     }
 
     // 타일은 한 번 만들면 DOM 위치를 옮기지 않는다 — iframe 을 DOM 에서 떼었다 붙이면 재로드되기 때문.
@@ -710,6 +711,8 @@
     //   제스처가 없으면 음소거 상태로 두고 의도는 유지 → 첫 클릭 때 다시 적용한다(pending 표시).
     //   풀었는데도 Safari 가 멈추면 음소거로 되돌리되 의도는 지우지 않는다.
     // - 음소거 타일: muted 만 걸고 play() 는 부르지 않는다(플레이어의 광고/준비 단계를 건드리면 멈춘다).
+    // - 아직 재생이 시작되지 않은 타일(로드 직후, 준비 단계)에는 소리를 켜지 않는다. 그때 muted 를 풀거나 play() 를 부르면
+    //   Safari 가 거부하면서 플레이어가 재생 전 화면(재생 버튼과 00:00)에 갇힌다(겪은 버그). pending 으로 두고 markLive 에서 적용한다.
     function applySound(id) {
         const v = tileVideo(id);
         const tile = tiles.get(id);
@@ -718,6 +721,8 @@
             if (!want) {
                 if (!v.muted) { tile.autoMuting = true; v.muted = true; tile.autoMuting = false; }
                 tile.root.classList.remove("sound-pending");
+            } else if (!tile.root.classList.contains("live") || v.paused || v.readyState < 3) {
+                tile.root.classList.add("sound-pending");
             } else if (navigator.userActivation?.hasBeenActive !== false) {
                 v.muted = false;
                 if (v.paused) v.play().catch(() => {});
