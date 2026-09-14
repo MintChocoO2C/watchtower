@@ -208,6 +208,12 @@
         svg.innerHTML = '<path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
         return svg;
     }
+    function reloadIcon() {
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "13"); svg.setAttribute("height", "13");
+        svg.innerHTML = '<path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M13.5 2v3.5H10" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
+        return svg;
+    }
     function gearIcon() {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "15"); svg.setAttribute("height", "15");
@@ -590,6 +596,9 @@
                 el("span", { class: "wt-viewers" }),
                 el("span", { class: "wt-level", title: t("roomLevelerBadge") }),
                 el("span", { class: "wt-sp" }),
+                // 플레이어가 로딩에서 멈추면 새로고침 말고는 길이 없다 — 타일 하나만 다시 불러온다 (탭 전체 새로고침 불필요)
+                el("button", { class: "wt-btn wt-icon wt-reload-btn", type: "button", title: t("roomReload"), "aria-label": t("roomReload"),
+                    onclick: (e) => { e.stopPropagation(); retryTile(ch.id, true); } }, [reloadIcon()]),
                 el("button", { class: "wt-btn wt-icon wt-focus-btn", type: "button", title: t("roomFocus"), "aria-label": t("roomFocus"),
                     onclick: (e) => { e.stopPropagation(); toggleFocus(ch.id); } }, [focusIcon()]),
                 el("button", { class: "wt-btn wt-icon wt-remove", type: "button", title: t("roomRemove"), "aria-label": t("roomRemove"), text: "×",
@@ -1229,7 +1238,7 @@
     }
     function retryTile(id, manual) {
         const tile = tiles.get(id);
-        if (!tile) return;
+        if (!tile || !tile.started) return;   // 로드 큐에서 아직 src 를 받지 않은 타일은 다시 불러올 것이 없다
         const rec = state.errors[id] || { count: 0, last: 0 };
         if (manual) rec.count = 0; else rec.count += 1;
         rec.last = Date.now();

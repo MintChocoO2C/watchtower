@@ -160,6 +160,9 @@
     "roomFocus": {
         "message": "View only this stream (double-click)"
     },
+    "roomReload": {
+        "message": "Reload this stream"
+    },
     "roomBackToGrid": {
         "message": "Grid"
     },

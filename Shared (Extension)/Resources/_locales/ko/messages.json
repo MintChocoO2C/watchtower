@@ -160,6 +160,9 @@
     "roomFocus": {
         "message": "이 방송만 크게 보기 (더블클릭)"
     },
+    "roomReload": {
+        "message": "이 방송만 다시 불러오기"
+    },
     "roomBackToGrid": {
         "message": "격자로"
     },
