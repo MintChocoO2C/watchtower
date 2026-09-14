@@ -169,6 +169,24 @@
     "roomFocusToastHint": {
         "message": "Esc grid · ←/→ switch stream · number keys jump"
     },
+    "roomFocusNoNeighbor": {
+        "message": "This is the only stream · nothing to switch to"
+    },
+    "roomFocusPendingHint": {
+        "message": "Pause to switch here · ←/→ keep choosing · Esc cancel"
+    },
+    "roomFocusSwitching": {
+        "message": "Switching…"
+    },
+    "roomFocusDelay": {
+        "message": "Arrow-key switch delay"
+    },
+    "roomFocusDelayDesc": {
+        "message": "In focus view, after you stop pressing ←/→, wait this long before switching to the previewed stream. Raise it for more time to keep pressing"
+    },
+    "roomSeconds": {
+        "message": " s"
+    },
     "roomFocusHint": {
         "message": "Double-click or Esc to go back · ←/→ next stream · number keys jump"
     },

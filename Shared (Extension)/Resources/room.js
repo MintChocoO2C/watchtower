@@ -67,6 +67,7 @@
         cols: "auto",   // "auto" | 1..4
         fit: false,     // true면 스크롤 없이 모든 타일이 한 화면에 들어오도록 크기를 줄인다
         leveler: { enabled: false, target: -24 }, // 소리 평준화(PoC): 켬/끔, 기준 음량(dBFS)
+        focusStepDelay: 500, // 집중 보기 ←/→: 입력이 이만큼(ms) 멈추면 미리 보던 방송으로 옮긴다 (설정 서랍, 사람마다 연타 속도가 달라 조절 가능)
         levelProfiles: {}, // channelId -> { db, n, at }  채널별 평균 음량(저장). 다시 열 때 준비 과정 없이 바로 맞춘다
     };
     const tiles = new Map();  // channelId -> { root, iframe, styled }
@@ -151,12 +152,18 @@
         ]));
         const drawer = buildSettingsDrawer();
         const panel = el("div", { class: "wt-panel", id: "wt-follow", hidden: "" });
-        // 집중 보기 진입/이동 안내 토스트: 채널명과 단축키를 잠깐 보여 주고 사라진다 (영상을 상시 가리지 않는다)
+        // 집중 보기 진입/이동 안내 토스트: 채널명·순서(n / 전체)와 단축키를 잠깐 보여 주고 사라진다 (영상을 상시 가리지 않는다)
         const focusToast = el("div", { class: "wt-focus-toast", id: "wt-focus-toast", "aria-live": "polite" }, [
-            el("span", { class: "wt-focus-toast-name", id: "wt-focus-toast-name" }),
-            el("span", { class: "wt-focus-toast-hint", text: t("roomFocusToastHint") }),
+            el("span", { class: "wt-focus-toast-row" }, [
+                el("span", { class: "wt-focus-toast-pos", id: "wt-focus-toast-pos" }),
+                el("span", { class: "wt-focus-toast-name", id: "wt-focus-toast-name" }),
+            ]),
+            el("span", { class: "wt-focus-toast-hint", id: "wt-focus-toast-hint", text: t("roomFocusToastHint") }),
         ]);
-        body.append(bar, el("div", { class: "wt-body" }, [scroll, ...chats, focusToast]), shelf, backdrop, drawer, panel);
+        // ←/→ 로 옮길 때 이동 방향의 가장자리에 잠깐 번쩍이는 화살표(키 입력이 먹었다는 즉각 피드백)
+        const focusNav = ["left", "right"].map(side =>
+            el("div", { class: `wt-focus-nav wt-focus-nav-${side}`, id: `wt-focus-nav-${side}`, "aria-hidden": "true", text: side === "left" ? "‹" : "›" }));
+        body.append(bar, el("div", { class: "wt-body" }, [scroll, ...chats, ...focusNav, focusToast]), shelf, backdrop, drawer, panel);
     }
 
     // 열 수(자동/1~4) + 화면에 맞춤 토글
@@ -243,6 +250,17 @@
             ]),
             sideSeg,
         ]));
+        // 집중 보기 ←/→ 전환 대기(초). 끌면서 바로 반영하고, 놓을 때 저장한다.
+        const delay = el("input", { type: "range", id: "wt-focus-delay", min: String(FOCUS_DELAY_MIN), max: String(FOCUS_DELAY_MAX), step: "100" });
+        delay.addEventListener("input", () => { state.focusStepDelay = clampFocusDelay(Number(delay.value)); renderFocusDelaySetting(); });
+        delay.addEventListener("change", () => browser.storage.local.set({ roomFocusStepDelay: clampFocusDelay(Number(delay.value)) }).catch(() => {}));
+        drawer.appendChild(el("div", { class: "wt-set-row wt-set-stack" }, [
+            el("span", { class: "wt-set-text" }, [
+                el("span", { class: "wt-set-label", text: t("roomFocusDelay") }),
+                el("span", { class: "wt-set-desc", id: "wt-focus-delay-desc", text: t("roomFocusDelayDesc") }),
+            ]),
+            delay,
+        ]));
         // 소리 평준화(PoC): 켬/끔 토글과 기준 음량 슬라이더. 값은 storage 에 두고 WT.watch 로 되돌아와 state 에 반영된다.
         const lvInput = el("input", { type: "checkbox", id: "wt-lv-on" });
         lvInput.addEventListener("change", () => {
@@ -296,6 +314,7 @@
             drawer.classList.add("open"); document.getElementById("wt-backdrop").hidden = false;
             syncSettingsInputs().catch(() => {});   // 열 때마다 저장값을 다시 읽어 표시
             renderLevelerSettings();
+            renderFocusDelaySetting();
         }
     }
     function closeOverlays() {
@@ -332,7 +351,7 @@
 
     // --- 채널 목록 저장/복원 ---
     async function loadState() {
-        const r = await WT.load(["roomChannels", "roomSound", "roomLayout", "roomChatSides", "roomChatSide", "roomLevelerEnabled", "roomLevelerTarget", "roomLevelerProfiles"]);
+        const r = await WT.load(["roomChannels", "roomSound", "roomLayout", "roomChatSides", "roomChatSide", "roomLevelerEnabled", "roomLevelerTarget", "roomLevelerProfiles", "roomFocusStepDelay"]);
         // 프로파일은 측정 방식 버전(v)이 같은 것만 쓴다 (v2: K-가중 라우드니스. 그 전 RMS 값은 버린다)
         state.levelProfiles = Object.fromEntries(Object.entries(r.roomLevelerProfiles && typeof r.roomLevelerProfiles === "object" ? r.roomLevelerProfiles : {})
             .filter(([, v]) => v && v.v === LEVEL_PROFILE_VERSION));
@@ -343,6 +362,8 @@
             : { left: r.roomChatSide === "left", right: r.roomChatSide !== "left" };
         state.leveler.enabled = r.roomLevelerEnabled === true;
         state.leveler.target = clampTarget(r.roomLevelerTarget);
+        state.focusStepDelay = clampFocusDelay(r.roomFocusStepDelay);
+        WT.watch(["roomFocusStepDelay"], (c) => { state.focusStepDelay = clampFocusDelay(c.roomFocusStepDelay.newValue); renderFocusDelaySetting(); });
         // 다른 탭/창에서 바뀐 경우용. 자기 탭의 조작은 서랍에서 바로 적용한다(relay 가 자기 탭으로 돌아오지 않을 수 있다).
         WT.watch(["roomLevelerEnabled", "roomLevelerTarget"], (c) => {
             if ("roomLevelerEnabled" in c) state.leveler.enabled = c.roomLevelerEnabled.newValue === true;
@@ -489,6 +510,7 @@
         }
         document.getElementById("wt-fit").setAttribute("aria-pressed", String(state.fit));
         renderLevelerSettings();
+        renderFocusDelaySetting();
 
         if (state.focus !== null && !online.some(c => c.id === state.focus)) exitFocus();   // 집중 중인 방송이 끝나면 격자로
         // 없어졌거나 종료된 채널의 타일은 내린다 (종료된 방송의 iframe 은 붙들고 있지 않는다)
@@ -703,7 +725,8 @@
     }
     // --- 집중 보기: 타일 하나가 격자 영역을 채우고 소리는 그 채널만 ---
     function toggleFocus(id) { if (state.focus === id) exitFocus(); else enterFocus(id); }
-    function enterFocus(id) {
+    // opts.dir: ←/→ 로 옮겨 온 방향(-1/1). 있으면 그쪽 가장자리 화살표를 번쩍여 키 입력을 즉시 알린다.
+    function enterFocus(id, opts = {}) {
         if (!tiles.has(id)) return;
         if (state.focus === null) state.soundBackup = new Set(state.sounds);   // 처음 들어갈 때만 백업
         state.focus = id;
@@ -712,18 +735,41 @@
         for (const ch of state.channels) applySound(ch.id);
         render();
         tiles.get(id)?.iframe.contentWindow?.focus();
-        showFocusToast(state.channels.find(c => c.id === id));
+        showFocusToast(state.channels.find(c => c.id === id), opts);
+        if (opts.dir) flashFocusNav(opts.dir);
         WT.log("room", "집중 보기", id.slice(0, 6));
     }
-    // 집중 보기 안내 토스트: 진입하거나 ←/→·숫자 키로 옮길 때 채널명과 단축키를 2초쯤 보여 준다
+    // 집중 보기 안내 토스트: 진입하거나 ←/→·숫자 키로 옮길 때 "n / 전체 · 채널명"과 단축키를 2초쯤 보여 준다.
+    // opts.hint 가 있으면 단축키 안내 대신 그 문구를, opts.dir 가 있으면 순서 앞에 이동 방향 화살표를 보여 준다.
+    // opts.sticky 면(옮길 방송을 고르는 중·옮기는 중) 저절로 사라지지 않고 다음 호출이 갱신할 때까지 남는다.
     let focusToastTimer = null;
-    function showFocusToast(ch) {
+    function showFocusToast(ch, opts = {}) {
         const toast = document.getElementById("wt-focus-toast");
         if (!toast || !ch) return;
+        const online = onlineChannels();
+        const i = online.findIndex(c => c.id === ch.id);
+        const arrow = opts.dir ? (opts.dir < 0 ? "← " : "→ ") : "";
+        document.getElementById("wt-focus-toast-pos").textContent = i >= 0 && online.length > 1 ? `${arrow}${i + 1} / ${online.length}` : "";
         document.getElementById("wt-focus-toast-name").textContent = ch.name || ch.id.slice(0, 8);
+        document.getElementById("wt-focus-toast-hint").textContent = opts.hint || t("roomFocusToastHint");
+        toast.classList.toggle("notice", !!opts.hint);
+        toast.classList.toggle("pending", opts.mode === "pending");
+        toast.classList.toggle("switching", opts.mode === "switching");
         clearTimeout(focusToastTimer);
         toast.classList.add("show");
-        focusToastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+        if (!opts.sticky) focusToastTimer = setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+    // 이동 방향 가장자리 화살표를 잠깐 번쩍인다. 연타하면 클래스를 다시 붙여 애니메이션을 처음부터 돌린다.
+    const focusNavTimers = { left: null, right: null };
+    function flashFocusNav(dir) {
+        const side = dir < 0 ? "left" : "right";
+        const nav = document.getElementById(`wt-focus-nav-${side}`);
+        if (!nav) return;
+        clearTimeout(focusNavTimers[side]);
+        nav.classList.remove("flash");
+        void nav.offsetWidth;   // 리플로우로 애니메이션 재시작
+        nav.classList.add("flash");
+        focusNavTimers[side] = setTimeout(() => nav.classList.remove("flash"), 450);
     }
     function exitFocus() {
         if (state.focus === null) return;
@@ -731,20 +777,78 @@
         state.sounds = state.soundBackup ? new Set(state.soundBackup) : new Set();
         state.soundBackup = null;
         document.body.classList.remove("focus-mode");
+        cancelFocusStep();
         clearTimeout(focusToastTimer);
         document.getElementById("wt-focus-toast")?.classList.remove("show");
+        for (const side of ["left", "right"]) { clearTimeout(focusNavTimers[side]); document.getElementById(`wt-focus-nav-${side}`)?.classList.remove("flash"); }
         saveState();
         for (const ch of state.channels) applySound(ch.id);
         render();
         WT.log("room", "격자로 복귀");
     }
-    // 집중 보기 중 ←/→ 로 이웃 채널로, 숫자 키로 n번째 채널로
+    // 집중 보기 중 ←/→ 로 이웃 채널로(끝에서는 반대쪽 끝으로 돌아간다), 숫자 키로 n번째 채널로.
+    // 실제 전환(enterFocus → render, 큰 iframe 재배치)은 방송이 많을수록 무거워 키를 누른 뒤 한 박자 늦게 보이므로
+    // 키마다 바로 옮기지 않는다: 누르는 즉시 방향 화살표를 번쩍이고 토스트에 목표 방송을, 화면 구석에 그 타일을 작게 미리 보여 준 뒤,
+    // 입력이 state.focusStepDelay(설정 서랍, 기본 0.5초) 동안 멈추면 그때 한 번만 옮긴다. 연타하면 미리보기만 따라 움직인다.
+    // 옮길 방송이 없을 때도 키가 먹었다는 걸 알리려고 화살표를 번쩍이고 토스트에 "다른 방송 없음"을 보여 준다.
+    const FOCUS_DELAY_DEF = 500, FOCUS_DELAY_MIN = 100, FOCUS_DELAY_MAX = 2000;   // ms
+    const clampFocusDelay = (v) => Number.isFinite(v) ? Math.min(FOCUS_DELAY_MAX, Math.max(FOCUS_DELAY_MIN, Math.round(v / 100) * 100)) : FOCUS_DELAY_DEF;
+    function renderFocusDelaySetting() {
+        const range = document.getElementById("wt-focus-delay");
+        if (range && Number(range.value) !== state.focusStepDelay) range.value = String(state.focusStepDelay);
+        const desc = document.getElementById("wt-focus-delay-desc");
+        if (desc) desc.textContent = `${t("roomFocusDelayDesc")} · ${t("roomCurrent")}: ${(state.focusStepDelay / 1000).toFixed(1)}${t("roomSeconds")}`;
+    }
+    let focusPending = null;   // { id, dir, timer } — 입력이 멈추면 옮겨 갈 방송
     function focusStep(delta) {
         const online = onlineChannels();
         if (!online.length) return;
-        const i = online.findIndex(c => c.id === state.focus);
+        flashFocusNav(delta);
+        if (online.length < 2) {
+            cancelFocusStep();
+            showFocusToast(online[0], { hint: t("roomFocusNoNeighbor") });
+            return;
+        }
+        const fromId = focusPending ? focusPending.id : state.focus;   // 연타 중이면 미리보기 위치에서 이어서 센다
+        const i = online.findIndex(c => c.id === fromId);
         const next = online[((i < 0 ? 0 : i) + delta + online.length) % online.length];
-        if (next) enterFocus(next.id);
+        cancelFocusStep();
+        if (next.id === state.focus) {   // 한 바퀴 돌아 지금 보는 방송으로 돌아왔으면 옮길 것이 없다
+            showFocusToast(next, { dir: delta });
+            return;
+        }
+        focusPending = { id: next.id, dir: delta, timer: setTimeout(commitFocusStep, state.focusStepDelay) };
+        setFocusPreview(next.id, delta);
+        showFocusToast(next, { dir: delta, mode: "pending", sticky: true, hint: t("roomFocusPendingHint") });
+    }
+    // 입력이 멈춘 뒤 실제 전환. "옮기는 중" 표시를 먼저 그리고(한 프레임 양보) 무거운 전환을 돌려 피드백이 늦지 않게 한다.
+    function commitFocusStep() {
+        const p = focusPending;
+        focusPending = null;
+        if (!p || state.focus === null || !tiles.has(p.id)) { setFocusPreview(null); return; }
+        showFocusToast(state.channels.find(c => c.id === p.id), { dir: p.dir, mode: "switching", sticky: true, hint: t("roomFocusSwitching") });
+        let done = false;
+        const go = () => {
+            if (done) return;
+            done = true;
+            setFocusPreview(null);
+            if (focusPending || state.focus === null || !tiles.has(p.id)) return;   // 그새 다시 누르거나 격자로 나갔으면 무시
+            enterFocus(p.id, { dir: p.dir });
+        };
+        requestAnimationFrame(() => setTimeout(go, 0));   // 다음 페인트 뒤에
+        setTimeout(go, 120);                              // 탭이 가려져 rAF 가 안 오면 이쪽이 먼저 온다
+    }
+    function cancelFocusStep() {
+        if (!focusPending) return;
+        clearTimeout(focusPending.timer);
+        focusPending = null;
+        setFocusPreview(null);
+    }
+    // 옮겨 갈 방송 미리보기: 그 타일을 DOM 은 그대로 둔 채 CSS 로 화면 아래 구석(이동 방향 쪽)에 작게 띄운다(iframe 재로드 없음)
+    function setFocusPreview(id, dir = 1) {
+        for (const tile of tiles.values()) tile.root.classList.remove("wt-preview", "wt-preview-left", "wt-preview-right");
+        const tile = id !== null ? tiles.get(id) : null;
+        if (tile) tile.root.classList.add("wt-preview", dir < 0 ? "wt-preview-left" : "wt-preview-right");
     }
     // 상황실 단축키. 부모 문서와 타일·채팅 iframe 문서 모두 이 함수를 부른다(키보드 포커스가 어디에 있든 같은 동작).
     // 처리했으면 true 를 돌려주고, 호출한 쪽이 기본 동작(플레이어 탐색 등)을 막는다.
@@ -752,8 +856,11 @@
         if (e.target?.closest?.("input, textarea, [contenteditable]")) return false;
         if (e.key === "Escape") {
             const had = state.focus !== null;
+            const pending = !!focusPending;
             closeOverlays();
-            if (had) exitFocus();
+            cancelFocusStep();
+            if (pending) showFocusToast(state.channels.find(c => c.id === state.focus));   // 예약만 취소하고 집중 보기는 유지
+            else if (had) exitFocus();
             return had;
         }
         if (state.focus !== null && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
@@ -763,6 +870,7 @@
         if (/^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) {
             const ch = onlineChannels()[Number(e.key) - 1];
             if (!ch) return false;
+            cancelFocusStep();
             toggleFocus(ch.id);
             return true;
         }

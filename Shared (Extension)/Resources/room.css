@@ -177,10 +177,58 @@
     opacity: 0; pointer-events: none; transition: opacity .18s ease, transform .18s ease;
 }
 .wt-focus-toast.show { opacity: 1; transform: translate(-50%, 0); }
-.wt-focus-toast-name { font-weight: 600; font-size: 13px; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wt-focus-toast-row { display: flex; align-items: baseline; gap: 8px; max-width: 100%; }
+.wt-focus-toast-pos { font-size: 11px; font-weight: 700; color: var(--wt-accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wt-focus-toast-pos:empty { display: none; }
+.wt-focus-toast-name { font-weight: 600; font-size: 13px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wt-focus-toast-name::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--wt-accent); margin-right: 7px; vertical-align: 1px; }
 .wt-focus-toast-hint { font-size: 11px; color: #b7bcc6; }
-@media (prefers-reduced-motion: reduce) { .wt-focus-toast { transition: none; } }
+.wt-focus-toast.notice .wt-focus-toast-hint { color: var(--wt-accent); font-weight: 600; }
+/* 옮길 방송을 고르는 중(pending)·옮기는 중(switching): 점이 깜박여 "아직 전환 전"임을 알린다 */
+.wt-focus-toast.pending .wt-focus-toast-name::before { background: transparent; border: 1.5px solid var(--wt-accent); width: 6px; height: 6px; }
+.wt-focus-toast.switching .wt-focus-toast-name::before { animation: wt-focus-pulse .6s ease-in-out infinite alternate; }
+@keyframes wt-focus-pulse { from { opacity: .25; } to { opacity: 1; } }
+/* 옮겨 갈 방송 미리보기: 숨겨 둔 타일을 화면 아래 구석(이동 방향 쪽)에 작게 띄운다 */
+.focus-mode .wt-tile.wt-preview {
+    visibility: visible; position: absolute; inset: auto; bottom: 18px; z-index: 12;
+    width: min(32%, 480px); height: auto; aspect-ratio: 16 / 9;
+    border: 2px solid var(--wt-accent); border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,.6);
+    pointer-events: none; animation: wt-preview-in .16s ease-out;
+}
+.focus-mode .wt-tile.wt-preview-left { left: 18px; }
+.focus-mode .wt-tile.wt-preview-right { right: 18px; }
+.focus-mode .wt-tile.wt-preview .wt-tile-top { opacity: 1; pointer-events: none; }
+.focus-mode .wt-tile.wt-preview .wt-tile-top .wt-btn { display: none; }   /* 미리보기에선 누를 수 없는 버튼을 숨긴다 */
+@keyframes wt-preview-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* ←/→ 이동 피드백: 방향 가장자리의 화살표가 잠깐 번쩍이며 이동 방향으로 살짝 밀린다 */
+.wt-focus-nav {
+    position: absolute; top: 50%; z-index: 11; transform: translateY(-50%);
+    width: 44px; height: 88px; border-radius: 12px; display: none; align-items: center; justify-content: center;
+    font-size: 40px; line-height: 1; font-weight: 300; color: #fff;
+    background: rgba(12, 13, 16, .72); border: 1px solid rgba(255,255,255,.14); box-shadow: 0 8px 24px rgba(0,0,0,.45);
+    opacity: 0; pointer-events: none;
+}
+.wt-focus-nav-left { left: 18px; }
+.wt-focus-nav-right { right: 18px; }
+.focus-mode .wt-focus-nav { display: flex; }
+.wt-focus-nav-left.flash { animation: wt-focus-nav-flash-left .45s ease-out; }
+.wt-focus-nav-right.flash { animation: wt-focus-nav-flash-right .45s ease-out; }
+@keyframes wt-focus-nav-flash-left {
+    0% { opacity: 0; transform: translate(6px, -50%); }
+    20% { opacity: 1; transform: translate(0, -50%); }
+    100% { opacity: 0; transform: translate(-6px, -50%); }
+}
+@keyframes wt-focus-nav-flash-right {
+    0% { opacity: 0; transform: translate(-6px, -50%); }
+    20% { opacity: 1; transform: translate(0, -50%); }
+    100% { opacity: 0; transform: translate(6px, -50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .wt-focus-toast { transition: none; }
+    .wt-focus-nav-left.flash, .wt-focus-nav-right.flash { animation: wt-focus-nav-flash-still .45s steps(1, end); }
+    .focus-mode .wt-tile.wt-preview, .wt-focus-toast.switching .wt-focus-toast-name::before { animation: none; }
+    @keyframes wt-focus-nav-flash-still { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+}
 
 /* 채팅 서랍 (집중 보기 전용): 가장자리에 손잡이만 보이다가 서랍에 마우스가 들어오면 열리고(.open), 영상 영역에 들어가면 닫힌다 */
 .wt-chatdock {
