@@ -76,6 +76,12 @@
     const RETRY_DELAY_MS = 4_000;      // 실패 감지 후 자동 재시도까지 대기
     const RETRY_MAX = 3;               // 이 횟수를 넘으면 자동 재시도를 멈추고 수동 버튼만 남긴다
     const RETRY_WINDOW_MS = 10 * 60_000;
+    // 부하 완화: 타일 iframe(치지직 SPA 전체)은 한꺼번에 띄우지 않고 몇 개씩 순서대로 연다.
+    const LOAD_CONCURRENCY = 3;        // 동시에 로드 중인 iframe 수
+    const LOAD_SLOT_MS = 6_000;        // load 이벤트가 안 와도 이 시간이 지나면 다음 타일을 연다
+    const STATUS_CONCURRENCY = 4;      // 상태 조회(live-detail) 동시 요청 수
+    const BOOT_STATUS_TIMEOUT_MS = 6_000; // 첫 화면: 상태 조회가 이보다 오래 걸리면 아는 만큼으로 먼저 그린다
+    const LIVE_FALLBACK_MS = 8_000;    // iframe 로드 뒤 영상 재생 신호가 없어도 이 시간이 지나면 로딩 표시를 걷는다
 
     const el = (tag, attrs = {}, children = []) => {
         const n = document.createElement(tag);
@@ -363,10 +369,69 @@
     const isOffline = (id) => state.status[id]?.open === false;
     const onlineChannels = () => state.channels.filter(c => !isOffline(c.id));
 
+    // 타일 로딩 표시: 아바타·채널명·스피너. 영상이 실제로 재생되기 전까지 검은 화면 대신 보여 준다.
+    // (첫 화면의 스켈레톤 타일과 실제 타일 위의 오버레이가 같은 모양이라 상태 조회 → 타일 생성 전환이 매끄럽다)
+    function tilePlaceholder(ch, text) {
+        return el("div", { class: "wt-loading", "aria-hidden": "true" }, [
+            ch.image ? el("img", { class: "wt-loading-avatar", src: ch.image, alt: "" }) : el("span", { class: "wt-loading-avatar wt-loading-dot" }),
+            el("span", { class: "wt-loading-name", text: ch.name || ch.id.slice(0, 8) }),
+            el("span", { class: "wt-loading-spinner" }),
+            el("span", { class: "wt-loading-text", text }),
+        ]);
+    }
+
+    // 첫 화면: 상태 조회가 끝나기 전에는 모든 채널을 스켈레톤 타일로 먼저 그린다(iframe 없음).
+    // 실제 타일이 그려질 때 render() 가 이것들을 걷어 낸다.
+    function renderSkeleton() {
+        const grid = document.getElementById("wt-grid");
+        const n = state.channels.length;
+        const cols = gridColumns(n);
+        grid.style.setProperty("--cols", cols);
+        grid.style.setProperty("--rows", Math.max(1, Math.ceil(n / cols)));
+        document.getElementById("wt-empty").hidden = n > 0;
+        document.getElementById("wt-count").textContent = n ? t("roomBooting") : "";
+        grid.replaceChildren(...state.channels.map(ch => el("div", { class: "wt-tile wt-skel" }, [tilePlaceholder(ch, t("roomBooting"))])));
+        fitTiles();
+    }
+
+    // --- iframe 로드 큐 ---
+    // 열 채널이 많을 때 iframe 을 동시에 다 열면 치지직 SPA 가 N 개 한꺼번에 뜨며 CPU·네트워크가 튄다.
+    // 타일은 바로 만들되(플레이스홀더가 보인다) src 는 LOAD_CONCURRENCY 개씩만 순서대로 준다.
+    const loadQueue = [];
+    let loading = 0;
+    function queueLoad(id) {
+        if (!loadQueue.includes(id)) loadQueue.push(id);
+        pumpLoads();
+    }
+    function pumpLoads() {
+        while (loading < LOAD_CONCURRENCY && loadQueue.length) {
+            const id = loadQueue.shift();
+            const tile = tiles.get(id);
+            if (!tile || !tile.root.isConnected || tile.started) continue;   // 그 사이 내려간 타일은 건너뜀
+            tile.started = true;
+            loading += 1;
+            let released = false;
+            const release = () => { if (released) return; released = true; loading -= 1; pumpLoads(); };
+            tile.releaseLoad = release;
+            setTimeout(release, LOAD_SLOT_MS);
+            tile.iframe.src = `/live/${id}`;
+            WT.log("room", "타일 로드 시작", id.slice(0, 6), "대기", loadQueue.length);
+        }
+    }
+
+    // 영상이 실제로 나오기 시작했다 — 로딩 표시를 걷는다
+    function markLive(id) {
+        const tile = tiles.get(id);
+        if (!tile || tile.root.classList.contains("live")) return;
+        clearTimeout(tile.liveTimer);
+        tile.root.classList.add("live");
+    }
+
     // 타일은 한 번 만들면 DOM 위치를 옮기지 않는다 — iframe 을 DOM 에서 떼었다 붙이면 재로드되기 때문.
     // 순서는 CSS order 로만 표현한다. (추가/삭제/스왑 모두 기존 타일을 건드리지 않는다)
     function render() {
         const grid = document.getElementById("wt-grid");
+        for (const sk of grid.querySelectorAll(".wt-skel")) sk.remove();   // 첫 화면 스켈레톤은 실제 타일로 대체
         const online = onlineChannels();
         const n = online.length;
         const cols = gridColumns(n);
@@ -417,7 +482,7 @@
         state.channels.forEach((ch, i) => {
             if (isOffline(ch.id)) return;
             let tile = tiles.get(ch.id);
-            if (!tile) { tile = createTile(ch); tiles.set(ch.id, tile); grid.appendChild(tile.root); }
+            if (!tile) { tile = createTile(ch); tiles.set(ch.id, tile); grid.appendChild(tile.root); queueLoad(ch.id); }
             tile.root.style.order = i;
             updateTile(ch.id);
         });
@@ -491,8 +556,8 @@
     }
 
     function createTile(ch) {
+        // src 는 여기서 주지 않는다 — queueLoad 가 순서대로 연다 (한꺼번에 N 개를 띄우지 않기 위해)
         const iframe = el("iframe", {
-            src: `/live/${ch.id}`,
             allow: "autoplay; fullscreen",
             title: ch.name || ch.id,
         });
@@ -513,6 +578,7 @@
                 el("button", { class: "wt-btn wt-icon wt-remove", type: "button", title: t("roomRemove"), "aria-label": t("roomRemove"), text: "×",
                     onclick: (e) => { e.stopPropagation(); removeChannel(ch.id); } }),
             ]),
+            tilePlaceholder(ch, t("roomTileLoading")),
             el("div", { class: "wt-offline", text: t("roomOffline") }),
             el("div", { class: "wt-error" }, [
                 el("span", { class: "wt-error-text", text: t("roomPlaybackFailed") }),
@@ -520,7 +586,7 @@
                 el("button", { class: "wt-btn wt-retry", type: "button", text: t("roomRetry"), onclick: () => retryTile(ch.id, true) }),
             ]),
         ]);
-        const tile = { root, iframe, styled: false };
+        const tile = { root, iframe, styled: false, started: false };
         iframe.addEventListener("load", () => onTileLoad(ch.id));
         return tile;
     }
@@ -531,6 +597,8 @@
         if (!tile) return;
         const doc = tile.iframe.contentDocument;
         if (!doc) { WT.log("room", "iframe 문서 접근 불가", id); return; }
+        if (!tile.started || /^about:/.test(doc.URL || "")) return;   // src 를 주기 전의 about:blank load 는 무시 (리다이렉트된 문서는 그대로 처리)
+        tile.releaseLoad?.();                                            // 다음 타일이 열리게 슬롯을 돌려준다
         const style = doc.createElement("style");
         style.id = "wt-player-only";
         style.textContent = PLAYER_ONLY_CSS;
@@ -553,6 +621,12 @@
         // iframe 의 keydown 은 부모 문서로 올라가지 않는다.
         doc.addEventListener("keydown", (e) => { if (handleRoomKey(e)) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
         doc.addEventListener("pointerover", () => { if (state.focus === id) closeChatDock(); }, { capture: true, passive: true });
+        // 영상이 실제로 흘러나오면 로딩 표시를 걷는다. 신호가 끝내 안 와도(플레이어 안내 화면 등) 일정 시간 뒤엔 걷어서 플레이어를 가리지 않는다.
+        tile.root.classList.remove("live");
+        doc.addEventListener("playing", (e) => { if (e.target?.tagName === "VIDEO") markLive(id); }, { capture: true, passive: true });
+        doc.addEventListener("timeupdate", (e) => { if (e.target?.tagName === "VIDEO" && e.target.currentTime > 0) markLive(id); }, { capture: true, passive: true });
+        clearTimeout(tile.liveTimer);
+        tile.liveTimer = setTimeout(() => markLive(id), LIVE_FALLBACK_MS);
         // 타일 안 광고 SKIP 버튼 자동 클릭 (content script 는 iframe 에서 돌지 않으므로 부모가 등록)
         WT.adSkip?.watch(doc);
         applySound(id);
@@ -1106,11 +1180,15 @@
         if (!doc || !tile.styled) return false;
         const v = doc.querySelector("video");
         if (v?.error) return true;
+        // 영상이 멈추지 않고 흘러가고 있으면 정상이다 — innerText 는 레이아웃을 강제하므로 그때는 읽지 않는다
+        if (v && !v.paused && v.currentTime > (tile.lastTime ?? -1)) { tile.lastTime = v.currentTime; return false; }
+        if (v) tile.lastTime = v.currentTime;
         const layout = doc.getElementById("live_player_layout");
         const text = layout?.innerText || "";
         return /재생이 실패|재생할 수 없|playback failed|cannot be played/i.test(text);
     }
     function checkPlayback() {
+        if (document.hidden) return;   // 안 보는 탭에서는 감시하지 않는다 (돌아오면 다음 주기에 이어서)
         for (const ch of state.channels) {
             const id = ch.id;
             const tile = tiles.get(id);
@@ -1140,7 +1218,7 @@
         rec.last = Date.now();
         state.errors[id] = rec;
         tile.styled = false;
-        tile.root.classList.remove("ready", "error");
+        tile.root.classList.remove("ready", "error", "live");   // 다시 불러오는 동안 로딩 표시로
         tile.root.querySelector(".wt-error-sub").textContent = "";
         reloadTile(id);
         WT.log("room", "다시 시도", id.slice(0, 6), manual ? "수동" : "자동", rec.count);
@@ -1153,9 +1231,21 @@
     }
 
     // --- 방송 상태 폴링 (공개 API, 로그인 불필요) ---
+    // 한꺼번에 N 개를 쏘지 않고 STATUS_CONCURRENCY 개씩 처리한다. 안 보는 탭에서는 주기 조회를 건너뛰고,
+    // 탭이 다시 보일 때 마지막 조회가 오래됐으면 그때 한 번 한다(visibilitychange).
+    let lastStatusAt = 0;
+    async function mapLimit(items, limit, fn) {
+        const queue = items.slice();
+        const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+            while (queue.length) await fn(queue.shift());
+        });
+        await Promise.all(workers);
+    }
     async function refreshStatus(ids = state.channels.map(c => c.id), opts = {}) {
+        if (opts.periodic && document.hidden) return;
+        lastStatusAt = Date.now();
         let changed = false;
-        await Promise.all(ids.map(async (id) => {
+        await mapLimit(ids, STATUS_CONCURRENCY, async (id) => {
             try {
                 const r = await fetch(`${API}/v2/channels/${id}/live-detail`, { credentials: "include" });
                 const c = (await r.json())?.content;
@@ -1173,7 +1263,7 @@
                 WT.log("room", "상태 조회 실패", id, e?.message);
             }
             updateTile(id);
-        }));
+        });
         if (changed && opts.render !== false) render();   // 종료 → 선반으로, 재개 → 원래 자리로
     }
 
@@ -1181,9 +1271,20 @@
     async function main() {
         buildDocument();
         await Promise.all([loadSettings(), loadState()]);
+        // 첫 화면: 켜짐/종료를 먼저 알고 나서 타일을 만든다 — 종료된 채널의 iframe 을 띄웠다가 내리는 낭비와
+        // N 개 iframe 이 한꺼번에 뜨는 스파이크를 피한다. 그동안은 스켈레톤 격자를 보여 준다.
+        renderSkeleton();
+        if (state.channels.length) {
+            const status = refreshStatus(undefined, { render: false });
+            let timedOut = false;
+            await Promise.race([status, new Promise(res => setTimeout(() => { timedOut = true; res(); }, BOOT_STATUS_TIMEOUT_MS))]);
+            if (timedOut) { WT.log("room", "상태 조회가 늦어 아는 만큼으로 먼저 그림"); status.then(() => render()); }
+        }
         render();
-        refreshStatus();
-        setInterval(() => refreshStatus(), STATUS_INTERVAL_MS);
+        setInterval(() => refreshStatus(undefined, { periodic: true }), STATUS_INTERVAL_MS);
+        document.addEventListener("visibilitychange", () => {
+            if (!document.hidden && Date.now() - lastStatusAt > STATUS_INTERVAL_MS) refreshStatus();
+        });
         setInterval(checkPlayback, PLAYBACK_CHECK_MS);
         window.addEventListener("resize", fitTiles);
         document.addEventListener("pointerdown", applyPendingSounds, true);
