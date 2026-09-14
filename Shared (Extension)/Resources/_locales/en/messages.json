@@ -109,6 +109,12 @@
     "roomOffline": {
         "message": "Offline"
     },
+    "roomBooting": {
+        "message": "Checking who’s live…"
+    },
+    "roomTileLoading": {
+        "message": "Loading…"
+    },
     "roomEmpty": {
         "message": "Use ‘Add from follows’ above to add channels"
     },

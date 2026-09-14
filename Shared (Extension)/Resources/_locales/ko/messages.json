@@ -109,6 +109,12 @@
     "roomOffline": {
         "message": "방송 종료"
     },
+    "roomBooting": {
+        "message": "방송 상태 확인 중…"
+    },
+    "roomTileLoading": {
+        "message": "불러오는 중…"
+    },
     "roomEmpty": {
         "message": "위의 ‘팔로우에서 추가’로 채널을 넣어 보세요"
     },
