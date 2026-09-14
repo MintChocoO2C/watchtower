@@ -148,6 +148,12 @@
     "roomRetryGiveUp": {
         "message": "자동 재시도를 멈췄습니다. 버튼을 눌러 다시 시도하세요"
     },
+    "roomAllOffline": {
+        "message": "지금 켜진 방송이 없어요"
+    },
+    "roomAllOfflineHint": {
+        "message": "방송이 시작되면 여기에 바로 나타납니다"
+    },
     "roomOfflineShelf": {
         "message": "방송 종료 — 다시 켜지면 자동으로 돌아옵니다"
     },

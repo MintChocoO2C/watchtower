@@ -130,7 +130,10 @@
         ]);
         const scroll = el("main", { class: "wt-scroll" }, [
             el("div", { class: "wt-grid", id: "wt-grid" }),
-            el("p", { class: "wt-empty", id: "wt-empty", text: t("roomEmpty") }),
+            el("div", { class: "wt-empty", id: "wt-empty" }, [
+                el("p", { class: "wt-empty-title", id: "wt-empty-title", text: t("roomEmpty") }),
+                el("p", { class: "wt-empty-hint", id: "wt-empty-hint" }),
+            ]),
         ]);
         // 종료된 방송 선반: 격자에서 빼서 여기 모아 두고, 다시 켜지면 격자로 돌아간다
         const shelf = el("footer", { class: "wt-shelf", id: "wt-shelf", hidden: "", onpointerenter: keepChatDock }, [
@@ -369,6 +372,20 @@
     const isOffline = (id) => state.status[id]?.open === false;
     const onlineChannels = () => state.channels.filter(c => !isOffline(c.id));
 
+    // 격자가 비었을 때의 안내. 채널이 하나도 없으면 추가 방법을, 채널은 있는데 모두 종료면
+    // "켜진 방송이 없다"를 은근히 보여 준다(검은 빈 화면이 고장처럼 보이지 않게).
+    function renderEmpty() {
+        const box = document.getElementById("wt-empty");
+        const total = state.channels.length;
+        const online = onlineChannels().length;
+        box.hidden = online > 0;
+        if (online > 0) return;
+        const allOffline = total > 0;
+        box.classList.toggle("wt-empty-offline", allOffline);
+        document.getElementById("wt-empty-title").textContent = t(allOffline ? "roomAllOffline" : "roomEmpty");
+        document.getElementById("wt-empty-hint").textContent = allOffline ? t("roomAllOfflineHint") : "";
+    }
+
     // 타일 로딩 표시: 아바타·채널명·스피너. 영상이 실제로 재생되기 전까지 검은 화면 대신 보여 준다.
     // (첫 화면의 스켈레톤 타일과 실제 타일 위의 오버레이가 같은 모양이라 상태 조회 → 타일 생성 전환이 매끄럽다)
     function tilePlaceholder(ch, text) {
@@ -388,7 +405,7 @@
         const cols = gridColumns(n);
         grid.style.setProperty("--cols", cols);
         grid.style.setProperty("--rows", Math.max(1, Math.ceil(n / cols)));
-        document.getElementById("wt-empty").hidden = n > 0;
+        renderEmpty();
         document.getElementById("wt-count").textContent = n ? t("roomBooting") : "";
         grid.replaceChildren(...state.channels.map(ch => el("div", { class: "wt-tile wt-skel" }, [tilePlaceholder(ch, t("roomBooting"))])));
         fitTiles();
@@ -440,7 +457,7 @@
         grid.style.setProperty("--rows", rows);
         document.body.classList.add("wt-room");   // 외부 스크립트가 body class 를 덮어써도 우리 스타일이 유지되게
         document.body.classList.toggle("fit", state.fit);
-        document.getElementById("wt-empty").hidden = state.channels.length > 0;
+        renderEmpty();
         const focused = state.focus !== null ? state.channels.find(c => c.id === state.focus) : null;
         document.getElementById("wt-count").textContent = focused
             ? `${focused.name || focused.id.slice(0, 8)} — ${t("roomFocusHint")}`
