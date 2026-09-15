@@ -76,7 +76,7 @@
     const RETRY_DELAY_MS = 4_000;      // 실패 감지 후 자동 재시도까지 대기
     const RETRY_MAX = 3;               // 이 횟수를 넘으면 자동 재시도를 멈추고 수동 버튼만 남긴다
     const RETRY_WINDOW_MS = 10 * 60_000;
-    const STALL_MS = 30_000;           // 플레이어가 로딩 상태이거나 영상이 이만큼 앞으로 가지 않으면 "멈춤"(무한 로딩)으로 보고 다시 불러온다
+    const STALL_MS = 20_000;           // 플레이어가 로딩 상태이거나 영상이 이만큼 앞으로 가지 않으면 "멈춤"(무한 로딩)으로 보고 다시 불러온다. 정상 시작은 10초 안에 끝난다(STP 확인)
     const AUTOSTART_MS = 10_000;       // 재생 전 화면(재생 버튼만 남은 상태)이 이만큼 이어지면 대신 눌러 준다. 정상 시작도 첫 5~8초는 beforeplay+loading 이다(STP 확인)
     const AUTOSTART_MAX = 3;           // 문서 하나당 대신 눌러 주는 횟수 상한
     // 부하 완화: 타일 iframe(치지직 SPA 전체)은 한꺼번에 띄우지 않고 몇 개씩 순서대로 연다.
@@ -1254,15 +1254,15 @@
         const inAd = !!cls?.contains("pzp-pc--adbreak");
         const userPaused = !!v && v.paused && v.currentTime > 0 && !cls?.contains("pzp-pc--loading");
         if (inAd || userPaused) { tile.stallSince = 0; tile.beforeplaySince = 0; return null; }
-        // 재생 전 화면(재생 버튼과 00:00). 실기 진단(2026-09-15)으로 두 부류가 확인됐다:
-        // - video 가 소스를 못 얻은 경우(networkState 3 NO_SOURCE, readyState 0) 또는 로딩 표시가 멈춘 경우 → 버튼을 눌러도 소용없다.
-        //   아래 멈춤 판정으로 흘려 보내 STALL_MS 뒤 그 타일만 다시 불러온다.
-        // - 소스는 있는데 재생만 안 된 경우 → 음소거 후 재생 버튼을 대신 누른다(autoStart). 시도가 남아 있는 동안만 멈춤에서 제외.
+        // 재생 전 화면(재생 버튼과 00:00). 실기 진단(2026-09-15)으로 확인된 것:
+        // - 거의 항상 video 가 미디어를 얻지 못한 상태다(readyState 0, networkState 3 NO_SOURCE 또는 0 EMPTY) 또는 로딩 표시가 멈춘 채다.
+        //   이때 재생 버튼을 대신 눌러도(3회) 한 번도 살아나지 않았다 → 바로 아래 멈춤 판정으로 흘려 STALL_MS 뒤 그 타일만 다시 불러온다.
+        // - 메타데이터까지 받았는데(readyState ≥ 1) 재생만 안 된 경우에만 음소거 후 재생 버튼을 대신 누른다(autoStart). 시도가 남은 동안만 멈춤에서 제외.
         if (cls?.contains("pzp-pc--beforeplay")) {
             const idle = !cls.contains("pzp-pc--loading");
-            const noSource = !!v && v.networkState === 3;
+            const hasMedia = !!v && v.readyState >= 1;
             if (!idle) tile.beforeplaySince = 0;
-            else if (!noSource && autoStart(id, doc, v)) { tile.stallSince = 0; return null; }
+            else if (hasMedia && autoStart(id, doc, v)) { tile.stallSince = 0; return null; }
         } else {
             tile.beforeplaySince = 0;
         }
