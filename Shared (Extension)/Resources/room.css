@@ -271,7 +271,9 @@
 .wt-tile.drag-src { opacity: .55; }
 .wt-tile.drag-over { border-color: var(--wt-accent); transform: scale(.97); box-shadow: 0 0 0 3px var(--wt-accent); }
 
-/* 로딩 표시: 영상이 실제로 재생되기 전(그리고 첫 화면의 스켈레톤 타일)에 검은 화면 대신 아바타·채널명·스피너.
+/* 로딩 화면: 영상이 실제로 재생되기 전(그리고 첫 화면의 스켈레톤 타일)에 검은 화면·플레이어 스피너 대신
+   지금 무엇을 하고 있는지 보여 준다 — 숨쉬는 링을 두른 아바타·채널명, 흐르는 진행 막대, 단계 목록(체크되며 내려간다).
+   단계는 room.js 가 실제 신호(src 부여 → iframe 로드 → video 메타데이터 → 재생)에 맞춰 data-step 으로 올린다.
    pointer-events 를 끊어 두어 플레이어 조작을 막지 않는다. .live 가 붙으면 사라진다. */
 .wt-loading {
     position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 8px;
@@ -279,15 +281,47 @@
     pointer-events: none; transition: opacity .3s ease;
 }
 .wt-tile.live .wt-loading, .wt-tile.error .wt-loading { opacity: 0; }
-.wt-loading-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #22252c; display: block; }
+.wt-loading-avatar {
+    width: 44px; height: 44px; border-radius: 50%; object-fit: cover; background: #22252c; display: block;
+    box-shadow: 0 0 0 2px rgba(255,255,255,.08); animation: wt-breathe 2.4s ease-in-out infinite;
+}
 .wt-loading-dot { background: #2c3038; }
 .wt-loading-name { font-size: 13px; font-weight: 600; color: #e9eaed; max-width: 80%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.wt-loading-spinner { width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.16); border-top-color: var(--wt-accent); border-radius: 50%; animation: wt-spin .9s linear infinite; }
-.wt-loading-text { font-size: 11px; color: #9ba1ab; }
-@keyframes wt-spin { to { transform: rotate(360deg); } }
+/* 진행 막대: 채워진 길이는 단계에 따라, 그 위로 밝은 띠가 계속 흘러 "일하는 중" 을 보여 준다 */
+.wt-loading-bar { position: relative; width: 140px; height: 3px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+.wt-loading-bar::before {
+    content: ""; position: absolute; inset: 0; width: var(--wt-progress, 12%); border-radius: 2px;
+    background: var(--wt-accent); transition: width .5s ease;
+}
+.wt-loading-bar::after {
+    content: ""; position: absolute; inset: 0; width: 40%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent);
+    animation: wt-sweep 1.4s ease-in-out infinite;
+}
+.wt-tile[data-step="1"] .wt-loading-bar { --wt-progress: 30%; }
+.wt-tile[data-step="2"] .wt-loading-bar { --wt-progress: 60%; }
+.wt-tile[data-step="3"] .wt-loading-bar { --wt-progress: 85%; }
+/* 단계 목록: 지난 단계는 체크, 지금 단계는 깜박이는 점, 다음 단계는 흐리게 */
+.wt-loading-steps { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; font-size: 11px; color: #6f7681; }
+.wt-loading-steps li { display: flex; align-items: center; gap: 6px; transition: color .3s ease; }
+.wt-loading-steps li::before {
+    content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none;
+    font-size: 9px; line-height: 6px; text-align: center; color: var(--wt-accent-ink);
+}
+.wt-loading-steps li.active { color: #e9eaed; }
+.wt-loading-steps li.active::before { background: var(--wt-accent); animation: wt-standby 1.2s ease-in-out infinite; }
+.wt-loading-steps li.done { color: #9ba1ab; }
+.wt-loading-steps li.done::before { content: "✓"; width: 10px; height: 10px; line-height: 10px; background: var(--wt-accent); }
+.wt-loading-text { font-size: 11px; color: #9ba1ab; }   /* 스켈레톤 타일(단계 없음)의 한 줄 안내 */
+@keyframes wt-breathe {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(255,255,255,.08), 0 0 0 0 var(--wt-accent-glow); }
+    50%      { box-shadow: 0 0 0 2px rgba(255,255,255,.14), 0 0 0 7px transparent; }
+}
+@keyframes wt-sweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+@keyframes wt-standby { 0%, 100% { opacity: .4; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-    .wt-loading { transition: none; }
-    .wt-loading-spinner { animation: none; border-top-color: rgba(255,255,255,.16); }
+    .wt-loading, .wt-loading-bar::before, .wt-loading-steps li { transition: none; }
+    .wt-loading-avatar, .wt-loading-bar::after, .wt-loading-steps li.active::before { animation: none; }
 }
 
 .wt-offline {

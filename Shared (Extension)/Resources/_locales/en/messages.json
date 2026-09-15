@@ -112,6 +112,15 @@
     "roomBooting": {
         "message": "Checking who’s live…"
     },
+    "roomLoadOpen": {
+        "message": "Opening player"
+    },
+    "roomLoadConnect": {
+        "message": "Connecting to stream"
+    },
+    "roomLoadStream": {
+        "message": "Receiving video"
+    },
     "roomTileLoading": {
         "message": "Loading…"
     },

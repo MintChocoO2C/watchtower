@@ -112,6 +112,15 @@
     "roomBooting": {
         "message": "방송 상태 확인 중…"
     },
+    "roomLoadOpen": {
+        "message": "플레이어 여는 중"
+    },
+    "roomLoadConnect": {
+        "message": "방송 연결 중"
+    },
+    "roomLoadStream": {
+        "message": "영상 받는 중"
+    },
     "roomTileLoading": {
         "message": "불러오는 중…"
     },
