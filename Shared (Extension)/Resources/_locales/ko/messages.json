@@ -151,6 +151,9 @@
     "roomRetry": {
         "message": "다시 시도"
     },
+    "roomStalled": {
+        "message": "재생이 멈췄습니다"
+    },
     "roomRetrying": {
         "message": "잠시 후 자동으로 다시 시도합니다"
     },

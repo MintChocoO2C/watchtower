@@ -151,6 +151,9 @@
     "roomRetry": {
         "message": "Retry"
     },
+    "roomStalled": {
+        "message": "Playback stalled"
+    },
     "roomRetrying": {
         "message": "Retrying automatically in a moment"
     },

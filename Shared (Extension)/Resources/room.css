@@ -324,6 +324,14 @@
     .wt-loading-avatar, .wt-loading-bar::after, .wt-loading-steps li.active::before { animation: none; }
 }
 
+/* 디버그 진단(설정의 디버그 로깅이 켜졌을 때만 채워진다): 플레이어 상태를 타일 왼쪽 아래에 작은 글씨로 */
+.wt-diag {
+    position: absolute; left: 6px; bottom: 6px; z-index: 5; max-width: calc(100% - 12px); overflow: hidden;
+    font: 10px/1.35 ui-monospace, Menlo, monospace; color: #e9eaed; background: rgba(0,0,0,.65);
+    padding: 3px 5px; border-radius: 3px; white-space: pre; pointer-events: none;
+}
+.wt-diag:empty { display: none; }
+
 .wt-offline {
     position: absolute; inset: 0; z-index: 3; display: none; place-items: center;
     background: rgba(0,0,0,.72); color: #c9ccd2; font-size: 13px;
