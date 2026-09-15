@@ -29,6 +29,7 @@ Watchtower는 Xcode로 macOS 앱으로 패키징되는 (macOS 전용, iOS 미지
 ### 검증 도구의 한계
 
 - **Safari MCP(`safari-mcp-stp`)가 여는 자동화 창에는 확장이 로드되지 않는다.** STP 에서 Watchtower 를 켜도 마찬가지다. 확장 자체(툴바 클릭, `document_start` 교체, 실제 마우스 제스처, 드래그)는 사용자가 실제 Safari 에서 확인한다.
+  - 예외(2026-09-15 확인): 그날은 STP 자동화 창에서 `/wt-room` 이 실제 확장으로 떴고 타일의 공식 플레이어도 재생됐다(단독 `/live` 페이지는 광고 차단 대화상자로 미디어를 안 열었다). 되면 그대로 쓰되, 자동화 창은 다른 도구를 부를 때마다 `document.hidden` 이 되어 1초 주기 감시가 쉬므로 `switch_tab` 직후 한 번의 `evaluate_javascript`(30초 제한) 안에서 관찰한다. `URL로 추가` 의 `prompt()` 는 `browser_dialogs` 로 답한다. 확장을 재설치하면 STP 쪽 확장 storage(채널 목록)는 비워진다.
 - MCP 는 (a) 치지직 페이지 DOM·네트워크·내부 API 확인, (b) 상황실 로직 주입 검증에 쓴다. (b)는 스킬의 `make-bundle.py` 로 shim+코드 번들을 만들어 `evaluate_javascript` 에 붙여 넣는다. MCP 의 `page_interactions` 클릭은 우리 리스너에 잘 닿지 않으니 로직은 `element.click()` 으로 확인한다.
 - 앱 내 Chromium 브라우저는 Safari 정책(ITP·자동재생)과 달라 검증에 쓰지 않는다.
 
