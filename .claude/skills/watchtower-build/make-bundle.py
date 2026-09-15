@@ -11,7 +11,7 @@ msgs = {k: v["message"] for k, v in ko.items()}
 css = re.sub(r"/\*.*?\*/", "", read("room.css"), flags=re.S); css = re.sub(r"\n\s*\n", "\n", css); css = re.sub(r"\n\s+", "\n", css)
 strip = lambda s: re.sub(r"\n\s*\n", "\n", re.sub(r"^\s*//.*$", "", s, flags=re.M))
 core, adskip, room = strip(read("wt-core.js")), strip(read("adskip.js")), strip(read("room.js"))
-room = room.replace("    main();\n})();", "    window.__wt = { state, tiles, render, addChannel, removeChannel, swapChannels, enterFocus, exitFocus, checkPlayback, retryTile, fitTiles };\n    main();\n})();")
+room = room.replace("    main();\n})();", "    window.__wt = { state, tiles, render, addChannel, removeChannel, swapChannels, enterFocus, exitFocus, toggleFocus, checkPlayback, retryTile, fitTiles, catchUp, latencyTick, syncParking, parkTile, unparkTile, measureLatency };\n    main();\n})();")
 # 초기 상태 — 필요에 맞게 바꾼다
 store = {
     "roomChannels": [{"id": "7ce8032370ac5121dcabce7bad375ced", "name": "풍월량"}, {"id": "64d76089fba26b180d9c9e48a32600d9", "name": "텐코 시부키"}],

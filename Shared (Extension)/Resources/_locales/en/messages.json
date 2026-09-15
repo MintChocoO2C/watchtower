@@ -246,5 +246,35 @@
     },
     "roomLevelerShort": {
         "message": "short"
+    },
+    "roomFocusPark": {
+        "message": "Pause other streams in focus view"
+    },
+    "roomFocusParkDesc": {
+        "message": "Only the focused stream keeps loading. Sharing bandwidth with other tiles causes stalls, after which latency jumps to ~20 s and never recovers"
+    },
+    "roomLatencyAuto": {
+        "message": "Auto catch-up"
+    },
+    "roomLatencyAutoDesc": {
+        "message": "When latency exceeds the threshold, reload the stream to get back to 3–4 s (1–2 s glitch). Never while paused by you or during ads"
+    },
+    "roomLatencyThreshold": {
+        "message": "Catch-up latency threshold"
+    },
+    "roomLatencyThresholdDesc": {
+        "message": "Reload when focus-view latency stays above this for a few seconds"
+    },
+    "roomLatency": {
+        "message": "Latency"
+    },
+    "roomLatencyCatching": {
+        "message": "Catching up…"
+    },
+    "roomLatencyCatchUp": {
+        "message": "Catch up now — reload the stream back to low latency"
+    },
+    "roomLatencyFloor": {
+        "message": "Still above the threshold right after a reload, so auto catch-up is resting"
     }
 }
