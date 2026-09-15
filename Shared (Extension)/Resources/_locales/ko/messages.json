@@ -246,5 +246,35 @@
     },
     "roomLevelerShort": {
         "message": "부족"
+    },
+    "roomFocusPark": {
+        "message": "집중 모드에서 나머지 방송 정지"
+    },
+    "roomFocusParkDesc": {
+        "message": "집중 중인 방송만 스트림을 받는다. 다른 방송과 대역폭을 나누다 잠깐 멈추면 지연이 20초대로 늘어 되돌아오지 않는다"
+    },
+    "roomLatencyAuto": {
+        "message": "자동 따라잡기"
+    },
+    "roomLatencyAutoDesc": {
+        "message": "지연이 기준을 넘으면 스트림을 다시 불러 3~4초로 되돌린다(1~2초 끊김). 직접 멈췄거나 광고 중일 땐 건드리지 않는다"
+    },
+    "roomLatencyThreshold": {
+        "message": "따라잡기 기준 지연"
+    },
+    "roomLatencyThresholdDesc": {
+        "message": "집중 모드의 지연이 이 값을 몇 초 넘게 넘으면 다시 불러온다"
+    },
+    "roomLatency": {
+        "message": "지연"
+    },
+    "roomLatencyCatching": {
+        "message": "따라잡는 중…"
+    },
+    "roomLatencyCatchUp": {
+        "message": "지금 따라잡기 — 스트림을 다시 불러 저지연으로 되돌린다"
+    },
+    "roomLatencyFloor": {
+        "message": "다시 불러도 기준을 넘어 자동 따라잡기를 쉬는 중"
     }
 }

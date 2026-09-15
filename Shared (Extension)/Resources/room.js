@@ -68,6 +68,7 @@
         fit: false,     // true면 스크롤 없이 모든 타일이 한 화면에 들어오도록 크기를 줄인다
         leveler: { enabled: false, target: -24 }, // 소리 평준화(PoC): 켬/끔, 기준 음량(dBFS)
         focusStepDelay: 500, // 집중 보기 ←/→: 입력이 이만큼(ms) 멈추면 미리 보던 방송으로 옮긴다 (설정 서랍, 사람마다 연타 속도가 달라 조절 가능)
+        latency: { auto: true, threshold: 8, pauseOthers: true }, // 집중 모드(저지연): 자동 따라잡기, 기준 지연(초), 나머지 타일 정지
         levelProfiles: {}, // channelId -> { db, n, at }  채널별 평균 음량(저장). 다시 열 때 준비 과정 없이 바로 맞춘다
     };
     const tiles = new Map();  // channelId -> { root, iframe, styled }
@@ -86,6 +87,14 @@
     const STATUS_CONCURRENCY = 4;      // 상태 조회(live-detail) 동시 요청 수
     const BOOT_STATUS_TIMEOUT_MS = 6_000; // 첫 화면: 상태 조회가 이보다 오래 걸리면 아는 만큼으로 먼저 그린다
     const LIVE_FALLBACK_MS = 15_000;   // iframe 로드 뒤 영상 재생 신호가 없어도 이 시간이 지나면 로딩 화면을 걷는다(플레이어 안내 화면을 영영 가리지 않게)
+    // 집중 모드 지연 따라잡기 (실측 근거는 latencyTick 주석)
+    const LAT_TICK_MS = 1_000;         // 지연 측정 주기
+    const LAT_OVER_MS = 3_000;         // 기준을 이만큼 연속으로 넘어야 따라잡는다 (순간 튐은 무시)
+    const LAT_COOLDOWN_MS = 30_000;    // 자동 따라잡기 사이 최소 간격
+    const LAT_MANUAL_COOLDOWN_MS = 3_000; // 배지 연타 방지
+    const LAT_MAX_PER_WINDOW = 4;      // LAT_WINDOW_MS 안에 자동으로 다시 불러오는 횟수 상한
+    const LAT_WINDOW_MS = 10 * 60_000;
+    const LAT_FALLBACK_MS = 10_000;    // src 재설정 뒤 이 시간 안에 재생이 돌아오지 않으면 타일(iframe) 째로 다시 불러온다
 
     const el = (tag, attrs = {}, children = []) => {
         const n = document.createElement(tag);
@@ -270,6 +279,42 @@
             ]),
             delay,
         ]));
+        // 집중 모드(저지연): 나머지 방송 정지 / 자동 따라잡기 / 기준 지연. 자기 탭은 바로 반영하고 저장한다(다른 탭은 WT.watch 로 따라온다).
+        const park = el("input", { type: "checkbox", id: "wt-focus-park" });
+        park.addEventListener("change", () => {
+            state.latency.pauseOthers = park.checked;
+            browser.storage.local.set({ roomFocusPauseOthers: park.checked }).catch(() => {});
+            render();   // 집중 중이면 즉시 정지/재개
+        });
+        drawer.appendChild(el("label", { class: "wt-set-row" }, [
+            el("span", { class: "wt-set-text" }, [
+                el("span", { class: "wt-set-label", text: t("roomFocusPark") }),
+                el("span", { class: "wt-set-desc", text: t("roomFocusParkDesc") }),
+            ]),
+            el("span", { class: "wt-toggle" }, [park, el("span", { class: "wt-slider" })]),
+        ]));
+        const latAuto = el("input", { type: "checkbox", id: "wt-lat-auto" });
+        latAuto.addEventListener("change", () => {
+            state.latency.auto = latAuto.checked;
+            browser.storage.local.set({ roomLatencyAuto: latAuto.checked }).catch(() => {});
+        });
+        drawer.appendChild(el("label", { class: "wt-set-row" }, [
+            el("span", { class: "wt-set-text" }, [
+                el("span", { class: "wt-set-label", text: t("roomLatencyAuto") }),
+                el("span", { class: "wt-set-desc", text: t("roomLatencyAutoDesc") }),
+            ]),
+            el("span", { class: "wt-toggle" }, [latAuto, el("span", { class: "wt-slider" })]),
+        ]));
+        const thr = el("input", { type: "range", id: "wt-lat-threshold", min: String(LAT_THRESHOLD_MIN), max: String(LAT_THRESHOLD_MAX), step: "1" });
+        thr.addEventListener("input", () => { state.latency.threshold = clampLatThreshold(Number(thr.value)); renderLatencySettings(); });
+        thr.addEventListener("change", () => browser.storage.local.set({ roomLatencyThreshold: clampLatThreshold(Number(thr.value)) }).catch(() => {}));
+        drawer.appendChild(el("div", { class: "wt-set-row wt-set-stack" }, [
+            el("span", { class: "wt-set-text" }, [
+                el("span", { class: "wt-set-label", text: t("roomLatencyThreshold") }),
+                el("span", { class: "wt-set-desc", id: "wt-lat-threshold-desc", text: t("roomLatencyThresholdDesc") }),
+            ]),
+            thr,
+        ]));
         // 소리 평준화(PoC): 켬/끔 토글과 기준 음량 슬라이더. 값은 storage 에 두고 WT.watch 로 되돌아와 state 에 반영된다.
         const lvInput = el("input", { type: "checkbox", id: "wt-lv-on" });
         lvInput.addEventListener("change", () => {
@@ -324,6 +369,7 @@
             syncSettingsInputs().catch(() => {});   // 열 때마다 저장값을 다시 읽어 표시
             renderLevelerSettings();
             renderFocusDelaySetting();
+            renderLatencySettings();
         }
     }
     function closeOverlays() {
@@ -360,7 +406,8 @@
 
     // --- 채널 목록 저장/복원 ---
     async function loadState() {
-        const r = await WT.load(["roomChannels", "roomSound", "roomLayout", "roomChatSides", "roomChatSide", "roomLevelerEnabled", "roomLevelerTarget", "roomLevelerProfiles", "roomFocusStepDelay"]);
+        const r = await WT.load(["roomChannels", "roomSound", "roomLayout", "roomChatSides", "roomChatSide", "roomLevelerEnabled", "roomLevelerTarget", "roomLevelerProfiles", "roomFocusStepDelay",
+            "roomLatencyAuto", "roomLatencyThreshold", "roomFocusPauseOthers"]);
         // 프로파일은 측정 방식 버전(v)이 같은 것만 쓴다 (v2: K-가중 라우드니스. 그 전 RMS 값은 버린다)
         state.levelProfiles = Object.fromEntries(Object.entries(r.roomLevelerProfiles && typeof r.roomLevelerProfiles === "object" ? r.roomLevelerProfiles : {})
             .filter(([, v]) => v && v.v === LEVEL_PROFILE_VERSION));
@@ -373,6 +420,16 @@
         state.leveler.target = clampTarget(r.roomLevelerTarget);
         state.focusStepDelay = clampFocusDelay(r.roomFocusStepDelay);
         WT.watch(["roomFocusStepDelay"], (c) => { state.focusStepDelay = clampFocusDelay(c.roomFocusStepDelay.newValue); renderFocusDelaySetting(); });
+        // 집중 모드(저지연) 설정. 자동 따라잡기·나머지 정지는 기본 켬이라 "false 로 저장된 경우"만 끔으로 본다.
+        state.latency.auto = r.roomLatencyAuto !== false;
+        state.latency.threshold = clampLatThreshold(r.roomLatencyThreshold);
+        state.latency.pauseOthers = r.roomFocusPauseOthers !== false;
+        WT.watch(["roomLatencyAuto", "roomLatencyThreshold", "roomFocusPauseOthers"], (c) => {
+            if ("roomLatencyAuto" in c) state.latency.auto = c.roomLatencyAuto.newValue !== false;
+            if ("roomLatencyThreshold" in c) state.latency.threshold = clampLatThreshold(c.roomLatencyThreshold.newValue);
+            if ("roomFocusPauseOthers" in c) { state.latency.pauseOthers = c.roomFocusPauseOthers.newValue !== false; render(); }
+            renderLatencySettings();
+        });
         // 다른 탭/창에서 바뀐 경우용. 자기 탭의 조작은 서랍에서 바로 적용한다(relay 가 자기 탭으로 돌아오지 않을 수 있다).
         WT.watch(["roomLevelerEnabled", "roomLevelerTarget"], (c) => {
             if ("roomLevelerEnabled" in c) state.leveler.enabled = c.roomLevelerEnabled.newValue === true;
@@ -432,7 +489,7 @@
     // 로딩 단계 표시를 올린다(내려가지는 않는다 — 신호 순서가 뒤섞여도 표시는 앞으로만). 0 은 처음으로 되돌림(다시 불러오기).
     function setLoadStep(id, step) {
         const tile = tiles.get(id);
-        if (!tile) return;
+        if (!tile || (tile.parked && step !== 0)) return;   // 정지된 타일: 옛 문서의 늦은 이벤트가 단계를 올리지 않게
         const cur = Number(tile.root.dataset.step || 0);
         if (step !== 0 && step <= cur) return;
         tile.root.dataset.step = step;
@@ -469,7 +526,7 @@
         while (loading < LOAD_CONCURRENCY && loadQueue.length) {
             const id = loadQueue.shift();
             const tile = tiles.get(id);
-            if (!tile || !tile.root.isConnected || tile.started) continue;   // 그 사이 내려간 타일은 건너뜀
+            if (!tile || !tile.root.isConnected || tile.started || tile.parked) continue;   // 그 사이 내려갔거나 집중 모드로 정지된 타일은 건너뜀
             tile.started = true;
             loading += 1;
             let released = false;
@@ -485,7 +542,7 @@
     // 영상이 실제로 나오기 시작했다 — 로딩 화면을 걷는다. 미뤄 둔 소리 의도가 있으면 이제 적용한다(준비 단계에는 건드리지 않는다).
     function markLive(id) {
         const tile = tiles.get(id);
-        if (!tile || tile.root.classList.contains("live")) return;
+        if (!tile || tile.parked || tile.root.classList.contains("live")) return;   // 정지된 타일은 옛 문서의 늦은 timeupdate 를 무시
         clearTimeout(tile.liveTimer);
         tile.root.classList.add("live");
         if (tile.root.classList.contains("sound-pending")) applySound(id);
@@ -537,6 +594,7 @@
         document.getElementById("wt-fit").setAttribute("aria-pressed", String(state.fit));
         renderLevelerSettings();
         renderFocusDelaySetting();
+        renderLatencySettings();
 
         if (state.focus !== null && !online.some(c => c.id === state.focus)) exitFocus();   // 집중 중인 방송이 끝나면 격자로
         // 없어졌거나 종료된 채널의 타일은 내린다 (종료된 방송의 iframe 은 붙들고 있지 않는다)
@@ -551,6 +609,7 @@
             tile.root.style.order = i;
             updateTile(ch.id);
         });
+        syncParking();   // 집중 모드면 나머지 타일을 정지, 아니면 재개 (타일이 다 만들어진 뒤에)
         renderShelf();
         fitTiles();
     }
@@ -649,13 +708,16 @@
             tilePlaceholder(ch),
             el("div", { class: "wt-offline", text: t("roomOffline") }),
             el("div", { class: "wt-diag", "aria-hidden": "true" }),   // 디버그 로깅이 켜졌을 때만 플레이어 상태를 적는다
+            // 집중 모드 지연 배지(방송보다 몇 초 늦게 보고 있는지). 누르면 바로 따라잡는다. 집중 타일에서만 보인다.
+            el("button", { class: "wt-latency", type: "button", hidden: "", title: t("roomLatencyCatchUp"),
+                onclick: (e) => { e.stopPropagation(); catchUp(ch.id, true); } }),
             el("div", { class: "wt-error" }, [
                 el("span", { class: "wt-error-text", text: t("roomPlaybackFailed") }),
                 el("span", { class: "wt-error-sub" }),
                 el("button", { class: "wt-btn wt-retry", type: "button", text: t("roomRetry"), onclick: () => retryTile(ch.id, true) }),
             ]),
         ]);
-        const tile = { root, iframe, styled: false, started: false };
+        const tile = { root, iframe, styled: false, started: false, parked: false, lat: null };
         iframe.addEventListener("load", () => onTileLoad(ch.id));
         return tile;
     }
@@ -670,6 +732,7 @@
         tile.releaseLoad?.();                                            // 다음 타일이 열리게 슬롯을 돌려준다
         tile.lastTime = -1; tile.stallSince = 0;                         // 새 문서의 currentTime 은 0 부터 — 이전 값과 비교하면 멈춤으로 오인한다
         tile.beforeplaySince = 0; tile.autoStartTries = 0;
+        resetLatency(tile);                                              // 새 문서 = 새 스트림. 따라잡기 상태도 처음부터
         const style = doc.createElement("style");
         style.id = "wt-player-only";
         style.textContent = PLAYER_ONLY_CSS;
@@ -936,6 +999,7 @@
         tile.root.classList.toggle("focus", state.focus === id);
         tile.root.querySelector(".wt-viewers").textContent = st?.open && st.viewers != null ? st.viewers.toLocaleString() : "";
         tile.root.querySelector(".wt-name").title = st?.title || "";
+        renderLatency(tile);
     }
 
     // --- 채널 추가/제거 ---
@@ -1338,6 +1402,158 @@
         if (badge.title !== title) badge.title = title;
     }
 
+    // --- 집중 모드: 나머지 타일 정지 ---
+    // 집중 중인 방송 하나만 스트림을 받게 나머지 타일의 iframe 을 내린다(about:blank). 여러 타일이 대역폭·CPU 를 나누다
+    // 잠깐이라도 멈추면 Safari 가 저지연 모드를 버리고 20초대 지연으로 떨어져 되돌아오지 않는다(2026-09-15 실측, latencyTick 주석).
+    // DOM 위치는 그대로 두고 src 만 비우므로 순서(CSS order)와 ←/→ 미리보기 자리는 유지된다. 나올 때는 로드 큐로 다시 연다.
+    function parkTile(id) {
+        const tile = tiles.get(id);
+        if (!tile || tile.parked) return;
+        tile.parked = true;
+        detachLeveler(tile);
+        clearTimeout(tile.liveTimer);
+        resetLatency(tile);
+        const qi = loadQueue.indexOf(id);
+        if (qi >= 0) loadQueue.splice(qi, 1);
+        if (tile.started) { tile.releaseLoad?.(); tile.iframe.src = "about:blank"; }
+        tile.started = false; tile.styled = false; tile.stallSince = 0;
+        tile.root.classList.remove("ready", "live", "error", "playing", "sound-pending");
+        setLoadStep(id, 0);
+        WT.log("room", "타일 정지(집중 모드)", id.slice(0, 6));
+    }
+    // first: 집중 대상이면 큐 맨 앞에 넣어 바로 연다
+    function unparkTile(id, first) {
+        const tile = tiles.get(id);
+        if (!tile?.parked) return;
+        tile.parked = false;
+        if (first) { const qi = loadQueue.indexOf(id); if (qi >= 0) loadQueue.splice(qi, 1); loadQueue.unshift(id); pumpLoads(); }
+        else queueLoad(id);
+        WT.log("room", "타일 재개", id.slice(0, 6));
+    }
+    // 멱등: render() 끝에서 부른다. 집중 모드 + 설정 켬이면 집중 타일 외 전부 정지, 아니면 전부 재개.
+    function syncParking() {
+        const park = state.focus !== null && state.latency.pauseOthers;
+        for (const id of tiles.keys()) {
+            if (park && id !== state.focus) parkTile(id);
+            else unparkTile(id, id === state.focus);
+        }
+    }
+
+    // --- 집중 모드: 지연 측정과 따라잡기 ---
+    // 치지직 live-detail 은 일반 HLS(_h)와 저지연 LL-HLS(_p) 두 변형을 주고, 공식 플레이어(Safari)는 항상 저지연 변형을
+    // 네이티브 HLS 로 재생한다(설정에 저지연 토글은 없다). 2026-09-15 STP 실측:
+    // - 저지연 단독 재생 지연 3.6~3.9초(2초 세그먼트·1초 파트·PART-HOLD-BACK 3초). 일반 변형은 ~32초.
+    // - 2초만 멈췄다 재개해도 Safari 가 저지연 모드를 버린다: seekable 창 자체가 벽시계보다 ~20초 뒤로 밀려
+    //   `currentTime = seekable.end` 도, 배속 재생도 그 벽을 못 넘는다. 복구는 src 재설정(+load) 뿐이고 그러면 곧바로 3.6초.
+    // 그래서 지연은 `Date.now() - (video.getStartDate() + currentTime)` 로 재고(청크리스트의 PROGRAM-DATE-TIME 기준),
+    // 기준을 넘으면 seek 대신 스트림을 다시 불러온다. 사용자가 멈춘 동안·광고·버퍼링 중에는 재지 않는다.
+    const LAT_THRESHOLD_DEF = 8, LAT_THRESHOLD_MIN = 4, LAT_THRESHOLD_MAX = 20;   // 초
+    const clampLatThreshold = (v) => Number.isFinite(v) ? Math.min(LAT_THRESHOLD_MAX, Math.max(LAT_THRESHOLD_MIN, Math.round(v))) : LAT_THRESHOLD_DEF;
+    function renderLatencySettings() {
+        const auto = document.getElementById("wt-lat-auto");
+        if (auto && auto.checked !== state.latency.auto) auto.checked = state.latency.auto;
+        const park = document.getElementById("wt-focus-park");
+        if (park && park.checked !== state.latency.pauseOthers) park.checked = state.latency.pauseOthers;
+        const range = document.getElementById("wt-lat-threshold");
+        if (range && Number(range.value) !== state.latency.threshold) range.value = String(state.latency.threshold);
+        const desc = document.getElementById("wt-lat-threshold-desc");
+        if (desc) desc.textContent = `${t("roomLatencyThresholdDesc")} · ${t("roomCurrent")}: ${state.latency.threshold}${t("roomSeconds")}`;
+    }
+    function measureLatency(v) {
+        try {
+            const start = v.getStartDate?.()?.getTime?.();
+            if (!Number.isFinite(start)) return null;   // PROGRAM-DATE-TIME 이 없거나 아직 재생목록을 못 읽은 상태
+            const sec = (Date.now() - (start + v.currentTime * 1000)) / 1000;
+            return sec > -2 && sec < 600 ? sec : null;   // 시계가 크게 어긋났거나 자리를 못 잡은 값은 "모름"
+        } catch { return null; }
+    }
+    function ensureLat(tile) {
+        return tile.lat ||= { sec: null, overSince: 0, catching: 0, reloads: [], fallback: null, hopeless: false, baseline: null };
+    }
+    // (재)로드 뒤 초기화. 다시 불러온 시각들(비율 제한)은 남긴다.
+    function resetLatency(tile) {
+        const lat = tile.lat;
+        if (!lat) return;
+        clearTimeout(lat.fallback); lat.fallback = null;
+        lat.sec = null; lat.overSince = 0; lat.catching = 0; lat.hopeless = false; lat.baseline = null;
+        renderLatency(tile);
+    }
+    function latencyTick() {
+        if (document.hidden || state.focus === null) return;   // 안 보는 탭에서는 재지 않는다(멈춤이 쌓여도 돌아오면 그때 잰다)
+        const id = state.focus;
+        const tile = tiles.get(id);
+        if (!tile || tile.parked) return;
+        const lat = ensureLat(tile);
+        const v = tileVideo(id);
+        let cls = null;
+        try { cls = tile.iframe.contentDocument?.querySelector(".pzp")?.classList || null; } catch {}
+        // 잴 수 있는 상태: 영상이 흘러가고 광고·로딩 중이 아닐 때. 사용자가 멈춘 동안 지연이 커지는 건 당연하니 세지 않는다.
+        const steady = !!v && tile.root.classList.contains("live") && !v.paused && v.readyState >= 3
+            && !cls?.contains("pzp-pc--adbreak") && !cls?.contains("pzp-pc--loading");
+        lat.sec = steady ? measureLatency(v) : null;
+        if (lat.catching && steady && lat.sec != null) {
+            // 다시 불러온 뒤 첫 안정 표본 = 이 스트림의 바닥. 바닥부터 기준을 넘으면 되풀이해도 소용없으니(시계 오차, 저지연 아님) 자동을 쉰다.
+            clearTimeout(lat.fallback); lat.fallback = null;
+            lat.catching = 0; lat.baseline = lat.sec;
+            lat.hopeless = lat.sec > state.latency.threshold;
+            WT.log("room", "따라잡기 결과", id.slice(0, 6), `${lat.sec.toFixed(1)}s`, lat.hopeless ? "바닥이 기준 이상 → 자동 쉼" : "");
+        }
+        const over = steady && lat.sec != null && lat.sec > state.latency.threshold;
+        if (!over) lat.overSince = 0; else lat.overSince ||= Date.now();
+        if (over && state.latency.auto && !lat.catching && !lat.hopeless && Date.now() - lat.overSince >= LAT_OVER_MS) catchUp(id, false);
+        renderLatency(tile);
+    }
+    // 스트림을 다시 불러 저지연 자리로 되돌린다. 우선 video 의 src 를 다시 넣는다(플레이어 UI 는 그대로, 1~2초 끊김).
+    // LAT_FALLBACK_MS 안에 재생이 다시 흐르지 않으면(플레이어가 src 교체를 못 견딘 경우) 타일(iframe) 째로 다시 불러온다.
+    function catchUp(id, manual) {
+        const tile = tiles.get(id);
+        if (!tile || tile.parked || !tile.started) return;
+        const lat = ensureLat(tile);
+        const now = Date.now();
+        lat.reloads = lat.reloads.filter(at => now - at < LAT_WINDOW_MS);
+        const last = lat.reloads[lat.reloads.length - 1] || 0;
+        if (manual ? now - last < LAT_MANUAL_COOLDOWN_MS : (lat.reloads.length >= LAT_MAX_PER_WINDOW || now - last < LAT_COOLDOWN_MS)) return;
+        lat.reloads.push(now); lat.catching = now; lat.overSince = 0; lat.hopeless = false;
+        const v = tileVideo(id);
+        const src = v?.currentSrc || v?.src || "";
+        WT.log("room", "따라잡기", id.slice(0, 6), manual ? "수동" : "자동", lat.sec != null ? `${lat.sec.toFixed(1)}s` : "?", src ? "src 재설정" : "타일 재로드");
+        renderLatency(tile);
+        if (!v || !src) { retryTile(id, true); return; }
+        v.src = src; v.load();
+        // 제스처 밖에서 소리 켜진 채 play() 가 거부되면 음소거로 재생하고 의도는 보류한다(다음 클릭에 applySound 가 되살린다)
+        v.play().catch(() => {
+            if (!v.muted) {
+                tile.autoMuting = true; v.muted = true; tile.autoMuting = false;
+                if (state.sounds.has(id)) tile.root.classList.add("sound-pending");
+            }
+            v.play().catch(() => {});
+        });
+        clearTimeout(lat.fallback);
+        lat.fallback = setTimeout(() => {
+            if (!lat.catching || state.focus !== id) return;
+            const nv = tileVideo(id);
+            // 재생은 돌아왔는데 표본만 아직인 경우(탭이 가려져 tick 이 쉬는 동안 등)는 재로드하지 않는다 — STP 에서 겪은 오판
+            if (nv && !nv.paused && nv.readyState >= 3 && nv.currentTime > 0) { lat.catching = 0; renderLatency(tile); return; }
+            WT.log("room", "src 재설정 뒤 재생이 돌아오지 않음 → 타일 재로드", id.slice(0, 6));
+            retryTile(id, true);
+        }, LAT_FALLBACK_MS);
+    }
+    function renderLatency(tile) {
+        const badge = tile.root.querySelector(".wt-latency");
+        if (!badge) return;
+        const show = state.focus === tile.root.dataset.id && !tile.parked;
+        if (badge.hidden !== !show) badge.hidden = !show;
+        if (!show) return;
+        const lat = ensureLat(tile);
+        const text = lat.catching ? t("roomLatencyCatching")
+            : `${t("roomLatency")} ${lat.sec != null ? lat.sec.toFixed(1) + t("roomSeconds") : "—"}`;
+        if (badge.textContent !== text) badge.textContent = text;
+        badge.classList.toggle("over", !lat.catching && lat.sec != null && lat.sec > state.latency.threshold);
+        badge.classList.toggle("catching", !!lat.catching);
+        const title = (lat.hopeless ? `${t("roomLatencyFloor")} · ` : "") + t("roomLatencyCatchUp");
+        if (badge.title !== title) badge.title = title;
+    }
+
     // --- 재생 실패 감시 ---
     // 재생 문제 감지. 돌려주는 값: "error"(플레이어가 실패를 띄움) · "stall"(무한 로딩) · null(정상).
     // - error: video.error 가 있거나 플레이어가 "미디어 재생이 실패했습니다" 를 띄운 경우.
@@ -1407,7 +1623,8 @@
             const v = doc?.querySelector("video");
             const cls = [...(doc?.querySelector(".pzp")?.classList || [])].filter(c => /^pzp-pc--/.test(c) && !/size|pointer|[0-9a-f]{8}-/.test(c)).map(c => c.slice(8)).join(" ");
             const dlg = (doc?.querySelector(".pzp-pc__error-dialog")?.innerText || "").replace(/\s+/g, " ").trim().slice(0, 60);
-            s = `${tile.root.classList.contains("live") ? "live" : "wait"} step${tile.root.dataset.step || 0} stall${tile.stallSince ? Math.round((Date.now() - tile.stallSince) / 1000) : 0}s auto${tile.autoStartTries || 0}\n`
+            s = `${tile.root.classList.contains("live") ? "live" : "wait"} step${tile.root.dataset.step || 0} stall${tile.stallSince ? Math.round((Date.now() - tile.stallSince) / 1000) : 0}s auto${tile.autoStartTries || 0}`
+              + (tile.parked ? " parked" : "") + (tile.lat ? ` lat${tile.lat.sec != null ? tile.lat.sec.toFixed(1) : "?"} reloads${tile.lat.reloads.length}${tile.lat.catching ? " catching" : ""}${tile.lat.hopeless ? " floor" : ""}` : "") + "\n"
               + `pzp: ${cls || "-"}\n`
               + (v ? `video: ${v.paused ? "paused" : "playing"} ${v.muted ? "muted" : "UNMUTED"} rs${v.readyState} ns${v.networkState} t${v.currentTime.toFixed(1)} ${v.error ? "err" + v.error.code : ""} ${v.currentSrc ? "src" : "nosrc"}` : "video: none")
               + (dlg ? `\ndialog: ${dlg}` : "");
@@ -1419,7 +1636,7 @@
         for (const ch of state.channels) {
             const id = ch.id;
             const tile = tiles.get(id);
-            if (!tile || tile.root.classList.contains("offline")) continue;
+            if (!tile || tile.parked || tile.root.classList.contains("offline")) continue;
             const problem = detectPlaybackProblem(id);
             renderDiag(id);
             if (!problem) { if (tile.root.classList.contains("error")) tile.root.classList.remove("error"); continue; }
@@ -1518,6 +1735,7 @@
             if (!document.hidden && Date.now() - lastStatusAt > STATUS_INTERVAL_MS) refreshStatus();
         });
         setInterval(checkPlayback, PLAYBACK_CHECK_MS);
+        setInterval(latencyTick, LAT_TICK_MS);
         window.addEventListener("resize", fitTiles);
         document.addEventListener("pointerdown", applyPendingSounds, true);
         applyLevelerSetting();

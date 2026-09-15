@@ -324,6 +324,23 @@
     .wt-loading-avatar, .wt-loading-bar::after, .wt-loading-steps li.active::before { animation: none; }
 }
 
+/* 집중 모드 지연 배지: 방송보다 몇 초 늦게 보고 있는지. 기준을 넘으면 주황, 따라잡는 중엔 점이 깜박인다. 누르면 바로 따라잡는다.
+   집중 타일에서만 보이고(room.js 가 hidden 을 관리) 상단 바(z 4)처럼 영상 위에 얹힌다 */
+.wt-latency {
+    position: absolute; right: 10px; bottom: 10px; z-index: 5; display: none; align-items: center;
+    padding: 5px 10px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16);
+    background: rgba(12,13,16,.72); color: #e9eaed; font: 500 11px/1 ui-monospace, Menlo, monospace; font-variant-numeric: tabular-nums;
+    cursor: pointer; opacity: .85; transition: opacity .15s ease, border-color .2s ease, color .2s ease;
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+}
+.wt-latency::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--wt-accent); margin-right: 7px; flex: none; }
+.focus-mode .wt-tile.focus .wt-latency:not([hidden]) { display: inline-flex; }
+.wt-latency:hover { opacity: 1; }
+.wt-latency.over { border-color: #f0a030; color: #ffd28a; }
+.wt-latency.over::before { background: #f0a030; }
+.wt-latency.catching::before { animation: wt-focus-pulse .6s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) { .wt-latency { transition: none; } .wt-latency.catching::before { animation: none; } }
+
 /* 디버그 진단(설정의 디버그 로깅이 켜졌을 때만 채워진다): 플레이어 상태를 타일 왼쪽 아래에 작은 글씨로 */
 .wt-diag {
     position: absolute; left: 6px; bottom: 6px; z-index: 5; max-width: calc(100% - 12px); overflow: hidden;
