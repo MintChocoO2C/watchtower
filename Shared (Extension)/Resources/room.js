@@ -77,7 +77,7 @@
     const RETRY_MAX = 3;               // 이 횟수를 넘으면 자동 재시도를 멈추고 수동 버튼만 남긴다
     const RETRY_WINDOW_MS = 10 * 60_000;
     const STALL_MS = 30_000;           // 플레이어가 로딩 상태이거나 영상이 이만큼 앞으로 가지 않으면 "멈춤"(무한 로딩)으로 보고 다시 불러온다
-    const AUTOSTART_MS = 5_000;        // 재생 전 화면(재생 버튼만 남은 상태)이 이만큼 이어지면 대신 눌러 준다
+    const AUTOSTART_MS = 10_000;       // 재생 전 화면(재생 버튼만 남은 상태)이 이만큼 이어지면 대신 눌러 준다. 정상 시작도 첫 5~8초는 beforeplay+loading 이다(STP 확인)
     const AUTOSTART_MAX = 3;           // 문서 하나당 대신 눌러 주는 횟수 상한
     // 부하 완화: 타일 iframe(치지직 SPA 전체)은 한꺼번에 띄우지 않고 몇 개씩 순서대로 연다.
     const LOAD_CONCURRENCY = 3;        // 동시에 로드 중인 iframe 수
@@ -626,6 +626,7 @@
             ]),
             tilePlaceholder(ch),
             el("div", { class: "wt-offline", text: t("roomOffline") }),
+            el("div", { class: "wt-diag", "aria-hidden": "true" }),   // 디버그 로깅이 켜졌을 때만 플레이어 상태를 적는다
             el("div", { class: "wt-error" }, [
                 el("span", { class: "wt-error-text", text: t("roomPlaybackFailed") }),
                 el("span", { class: "wt-error-sub" }),
@@ -1253,7 +1254,12 @@
         const inAd = !!cls?.contains("pzp-pc--adbreak");
         const userPaused = !!v && v.paused && v.currentTime > 0 && !cls?.contains("pzp-pc--loading");
         if (inAd || userPaused) { tile.stallSince = 0; tile.beforeplaySince = 0; return null; }
-        if (cls?.contains("pzp-pc--beforeplay")) { tile.stallSince = 0; autoStart(id, doc, v); return null; }   // 다시 불러와도 같은 화면이 나오므로 멈춤으로 치지 않는다
+        if (cls?.contains("pzp-pc--beforeplay")) {   // 다시 불러와도 같은 화면이 나오므로 멈춤으로 치지 않는다
+            tile.stallSince = 0;
+            if (cls.contains("pzp-pc--loading")) tile.beforeplaySince = 0;   // 플레이어가 아직 스스로 시작하는 중 — 끼어들지 않는다
+            else autoStart(id, doc, v);
+            return null;
+        }
         tile.beforeplaySince = 0;
         tile.stallSince ||= Date.now();
         return Date.now() - tile.stallSince >= STALL_MS ? "stall" : null;
@@ -1276,6 +1282,25 @@
         if (state.sounds.has(id)) tile.root.classList.add("sound-pending");
         WT.log("room", "재생 전 화면 → 음소거 후 재생 버튼 대신 누름", id.slice(0, 6), tile.autoStartTries);
     }
+    // 디버그 로깅이 켜져 있으면 타일 왼쪽 아래에 플레이어 상태를 적는다 — 재현이 안 되는 문제를 스크린샷으로 볼 수 있게.
+    function renderDiag(id) {
+        const tile = tiles.get(id);
+        const box = tile?.root.querySelector(".wt-diag");
+        if (!box) return;
+        if (!WT.debug) { box.textContent = ""; return; }
+        let s;
+        try {
+            const doc = tile.iframe.contentDocument;
+            const v = doc?.querySelector("video");
+            const cls = [...(doc?.querySelector(".pzp")?.classList || [])].filter(c => /^pzp-pc--/.test(c) && !/size|pointer|[0-9a-f]{8}-/.test(c)).map(c => c.slice(8)).join(" ");
+            const dlg = (doc?.querySelector(".pzp-pc__error-dialog")?.innerText || "").replace(/\s+/g, " ").trim().slice(0, 60);
+            s = `${tile.root.classList.contains("live") ? "live" : "wait"} step${tile.root.dataset.step || 0} stall${tile.stallSince ? Math.round((Date.now() - tile.stallSince) / 1000) : 0}s auto${tile.autoStartTries || 0}\n`
+              + `pzp: ${cls || "-"}\n`
+              + (v ? `video: ${v.paused ? "paused" : "playing"} ${v.muted ? "muted" : "UNMUTED"} rs${v.readyState} ns${v.networkState} t${v.currentTime.toFixed(1)} ${v.error ? "err" + v.error.code : ""} ${v.currentSrc ? "src" : "nosrc"}` : "video: none")
+              + (dlg ? `\ndialog: ${dlg}` : "");
+        } catch (e) { s = "diag: " + (e?.message || e); }
+        box.textContent = s;
+    }
     function checkPlayback() {
         if (document.hidden) return;   // 안 보는 탭에서는 감시하지 않는다 (돌아오면 다음 주기에 이어서)
         for (const ch of state.channels) {
@@ -1283,6 +1308,7 @@
             const tile = tiles.get(id);
             if (!tile || tile.root.classList.contains("offline")) continue;
             const problem = detectPlaybackProblem(id);
+            renderDiag(id);
             if (!problem) { if (tile.root.classList.contains("error")) tile.root.classList.remove("error"); continue; }
             if (tile.root.classList.contains("error")) continue;   // 이미 처리 중
             tile.root.classList.add("error");
