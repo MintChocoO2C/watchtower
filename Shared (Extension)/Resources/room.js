@@ -1254,33 +1254,38 @@
         const inAd = !!cls?.contains("pzp-pc--adbreak");
         const userPaused = !!v && v.paused && v.currentTime > 0 && !cls?.contains("pzp-pc--loading");
         if (inAd || userPaused) { tile.stallSince = 0; tile.beforeplaySince = 0; return null; }
-        if (cls?.contains("pzp-pc--beforeplay")) {   // 다시 불러와도 같은 화면이 나오므로 멈춤으로 치지 않는다
-            tile.stallSince = 0;
-            if (cls.contains("pzp-pc--loading")) tile.beforeplaySince = 0;   // 플레이어가 아직 스스로 시작하는 중 — 끼어들지 않는다
-            else autoStart(id, doc, v);
-            return null;
+        // 재생 전 화면(재생 버튼과 00:00). 실기 진단(2026-09-15)으로 두 부류가 확인됐다:
+        // - video 가 소스를 못 얻은 경우(networkState 3 NO_SOURCE, readyState 0) 또는 로딩 표시가 멈춘 경우 → 버튼을 눌러도 소용없다.
+        //   아래 멈춤 판정으로 흘려 보내 STALL_MS 뒤 그 타일만 다시 불러온다.
+        // - 소스는 있는데 재생만 안 된 경우 → 음소거 후 재생 버튼을 대신 누른다(autoStart). 시도가 남아 있는 동안만 멈춤에서 제외.
+        if (cls?.contains("pzp-pc--beforeplay")) {
+            const idle = !cls.contains("pzp-pc--loading");
+            const noSource = !!v && v.networkState === 3;
+            if (!idle) tile.beforeplaySince = 0;
+            else if (!noSource && autoStart(id, doc, v)) { tile.stallSince = 0; return null; }
+        } else {
+            tile.beforeplaySince = 0;
         }
-        tile.beforeplaySince = 0;
         tile.stallSince ||= Date.now();
         return Date.now() - tile.stallSince >= STALL_MS ? "stall" : null;
     }
-    // 재생 전 화면(pzp-pc--beforeplay, 가운데 재생 버튼과 00:00): 플레이어가 소리 켜진 채 자동 재생을 시도하다 Safari 에 막히면
-    // 여기서 멈춘다. 플레이어가 음소거 설정을 자체 저장하므로 어느 타일에서든 플레이어 버튼으로 소리를 켠 적이 있으면
-    // 그 뒤 새로 여는 타일마다 생긴다. AUTOSTART_MS 이상 이어지면 음소거를 걸고(음소거면 자동 재생이 허용된다) 플레이어의
-    // 재생 버튼을 대신 누른다. 소리 의도(state.sounds)는 지우지 않는다 — pending 으로 두면 첫 클릭 때 applySound 가 다시 켠다.
-    // 방금 열린 문서가 스스로 재생을 시작하기 전에 끼어들지 않도록 한 번 본 뒤 시간이 지나야 누르고, 문서당 AUTOSTART_MAX 번까지만.
+    // 재생 전 화면에서 소스는 있는데 재생만 안 된 타일: AUTOSTART_MS 이상 이어지면 음소거를 걸고(음소거면 자동 재생이 허용된다)
+    // 플레이어의 재생 버튼을 대신 누른다. 소리 의도(state.sounds)는 지우지 않는다 — pending 으로 두면 첫 클릭 때 applySound 가 다시 켠다.
+    // 문서당 AUTOSTART_MAX 번까지. 돌려주는 값: 아직 시도할 여지가 있으면 true(기다리는 중 포함), 다 썼으면 false → 멈춤 판정으로 넘긴다.
     function autoStart(id, doc, v) {
         const tile = tiles.get(id);
+        if ((tile.autoStartTries || 0) >= AUTOSTART_MAX) return false;
         tile.beforeplaySince ||= Date.now();
-        if (Date.now() - tile.beforeplaySince < AUTOSTART_MS || (tile.autoStartTries || 0) >= AUTOSTART_MAX) return;
+        if (Date.now() - tile.beforeplaySince < AUTOSTART_MS) return true;
         const btn = doc.querySelector("button.pzp-pc__brand-playback-button");
-        if (!btn) return;
+        if (!btn) return false;
         tile.autoStartTries = (tile.autoStartTries || 0) + 1;
         tile.beforeplaySince = 0;   // 눌렀는데도 그대로면 다음 번엔 다시 AUTOSTART_MS 를 기다린다
         if (v && !v.muted) { tile.autoMuting = true; v.muted = true; tile.autoMuting = false; }
         btn.click();
         if (state.sounds.has(id)) tile.root.classList.add("sound-pending");
         WT.log("room", "재생 전 화면 → 음소거 후 재생 버튼 대신 누름", id.slice(0, 6), tile.autoStartTries);
+        return true;
     }
     // 디버그 로깅이 켜져 있으면 타일 왼쪽 아래에 플레이어 상태를 적는다 — 재현이 안 되는 문제를 스크린샷으로 볼 수 있게.
     function renderDiag(id) {
