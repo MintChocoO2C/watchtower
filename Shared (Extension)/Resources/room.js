@@ -129,23 +129,34 @@
         body.replaceChildren();
         body.className = "wt-room";
 
+        // 상단 바(macOS 툴바 구성): 왼쪽은 뒤로 가기 + 제목/부제, 오른쪽은 기능별로 묶은 유리 캡슐 그룹
         const bar = el("header", { class: "wt-bar", onpointerenter: keepChatDock }, [
-            el("span", { class: "wt-title", text: t("roomTitle") }),
-            // 집중 보기 배지: 방송이 하나뿐인 격자와 집중 보기가 똑같이 보이지 않게 상단 바에서 모드를 분명히 한다
-            el("span", { class: "wt-mode", id: "wt-mode", hidden: "" }, [focusIcon(), el("span", { text: t("roomFocusMode") })]),
-            el("span", { class: "wt-count", id: "wt-count" }),
-            el("button", { class: "wt-btn wt-unfocus", type: "button", onclick: exitFocus, text: "← " + t("roomBackToGrid") }),
+            el("button", { class: "wt-btn wt-glass wt-unfocus", type: "button", onclick: exitFocus }, [icon("chevronLeft", 13, 1.8), el("span", { text: t("roomBackToGrid") })]),
+            el("div", { class: "wt-titles" }, [
+                el("span", { class: "wt-title-row" }, [
+                    el("span", { class: "wt-title", text: t("roomTitle") }),
+                    // 집중 보기 배지: 방송이 하나뿐인 격자와 집중 보기가 똑같이 보이지 않게 상단 바에서 모드를 분명히 한다
+                    el("span", { class: "wt-mode", id: "wt-mode", hidden: "" }, [focusIcon(), el("span", { text: t("roomFocusMode") })]),
+                ]),
+                el("span", { class: "wt-count", id: "wt-count" }),
+            ]),
             el("span", { class: "wt-sp" }),
             buildLayoutControls(),
-            el("button", { class: "wt-btn wt-primary", type: "button", onclick: openFollowPanel, text: "＋ " + t("roomAddFollow") }),
-            el("button", { class: "wt-btn", type: "button", onclick: addByUrl, text: t("roomAddUrl") }),
-            el("button", { class: "wt-btn wt-icon", type: "button", title: t("roomSettings"), "aria-label": t("roomSettings"), onclick: toggleSettings }, [gearIcon()]),
+            el("div", { class: "wt-group" }, [
+                el("button", { class: "wt-btn wt-primary", type: "button", onclick: openFollowPanel }, [icon("plus", 12, 2), el("span", { text: t("roomAddFollow") })]),
+                el("button", { class: "wt-btn wt-plain", type: "button", onclick: addByUrl }, [icon("link", 13), el("span", { text: t("roomAddUrl") })]),
+            ]),
+            el("button", { class: "wt-btn wt-icon wt-glass", type: "button", title: t("roomSettings"), "aria-label": t("roomSettings"), onclick: toggleSettings }, [gearIcon()]),
         ]);
         const scroll = el("main", { class: "wt-scroll" }, [
             el("div", { class: "wt-grid", id: "wt-grid" }),
+            // 빈 화면(ContentUnavailableView 구성): 큰 기호 + 제목 + 설명 + (채널이 없을 때) 바로 추가하는 버튼
             el("div", { class: "wt-empty", id: "wt-empty" }, [
+                el("span", { class: "wt-empty-icon wt-empty-icon-add" }, [icon("play", 44, 1.1)]),
+                el("span", { class: "wt-empty-icon wt-empty-icon-off" }, [icon("broadcast", 44, 1.1)]),
                 el("p", { class: "wt-empty-title", id: "wt-empty-title", text: t("roomEmpty") }),
                 el("p", { class: "wt-empty-hint", id: "wt-empty-hint" }),
+                el("button", { class: "wt-btn wt-primary wt-empty-action", type: "button", onclick: openFollowPanel }, [icon("plus", 12, 2), el("span", { text: t("roomAddFollow") })]),
             ]),
         ]);
         // 종료된 방송 선반: 격자에서 빼서 여기 모아 두고, 다시 켜지면 격자로 돌아간다
@@ -174,7 +185,8 @@
         ]);
         // ←/→ 로 옮길 때 이동 방향의 가장자리에 잠깐 번쩍이는 화살표(키 입력이 먹었다는 즉각 피드백)
         const focusNav = ["left", "right"].map(side =>
-            el("div", { class: `wt-focus-nav wt-focus-nav-${side}`, id: `wt-focus-nav-${side}`, "aria-hidden": "true", text: side === "left" ? "‹" : "›" }));
+            el("div", { class: `wt-focus-nav wt-focus-nav-${side}`, id: `wt-focus-nav-${side}`, "aria-hidden": "true" },
+                [icon(side === "left" ? "chevronLeft" : "chevronRight", 22, 2)]));
         body.append(bar, el("div", { class: "wt-body" }, [scroll, ...chats, ...focusNav, focusToast]), shelf, backdrop, drawer, panel);
     }
 
@@ -188,16 +200,35 @@
         }
         const fit = el("button", { class: "wt-btn wt-fit", type: "button", id: "wt-fit", "aria-pressed": "false",
             text: t("roomFit"), onclick: () => { state.fit = !state.fit; saveState(); render(); } });
-        return el("div", { class: "wt-layout" }, [seg, fit]);
+        return el("div", { class: "wt-layout wt-group" }, [seg, fit]);
     }
 
 
-    function chatIcon() {
+    // 아이콘: SF Symbols 풍의 선 아이콘(16×16 좌표계, 둥근 끝·이음, 굵기 1.5). 모양은 이름으로 고른다.
+    const ICONS = {
+        plus: '<path d="M8 3v10M3 8h10"/>',
+        link: '<path d="M6.9 9.1a2.6 2.6 0 0 0 3.7 0l2.2-2.2a2.6 2.6 0 0 0-3.7-3.7l-.8.8"/><path d="M9.1 6.9a2.6 2.6 0 0 0-3.7 0L3.2 9.1a2.6 2.6 0 0 0 3.7 3.7l.8-.8"/>',
+        gear: '<path d="M12.8 8.4 14.1 9.4 13.3 11.4 11.7 11.1 11.1 11.7 11.4 13.3 9.4 14.1 8.4 12.8 7.6 12.8 6.6 14.1 4.6 13.3 4.9 11.7 4.3 11.1 2.7 11.4 1.9 9.4 3.2 8.4 3.2 7.6 1.9 6.6 2.7 4.6 4.3 4.9 4.9 4.3 4.6 2.7 6.6 1.9 7.6 3.2 8.4 3.2 9.4 1.9 11.4 2.7 11.1 4.3 11.7 4.9 13.3 4.6 14.1 6.6 12.8 7.6Z"/><circle cx="8" cy="8" r="2"/>',
+        xmark: '<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>',
+        chevronLeft: '<path d="M10 3L5 8l5 5"/>',
+        chevronRight: '<path d="M6 3l5 5-5 5"/>',
+        expand: '<path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5 9.2 6.8M2.5 13.5l4.3-4.3"/>',
+        reload: '<path d="M13.3 8.5A5.3 5.3 0 1 1 11.8 4.3"/><path d="M12.6 1.8v3h-3"/>',
+        chat: '<path d="M8 2.8c3.1 0 5.5 2 5.5 4.5S11.1 11.8 8 11.8c-.6 0-1.2-.1-1.7-.2l-2.9 1.6.7-2.4C3.1 10 2.5 8.7 2.5 7.3 2.5 4.8 4.9 2.8 8 2.8z"/>',
+        play: '<rect x="1.5" y="3" width="13" height="10" rx="2.2"/><path d="M6.8 6.2v3.6L9.9 8z" fill="currentColor"/>',
+        broadcast: '<circle cx="8" cy="8" r="1.2" fill="currentColor"/><path d="M5.5 5.5a3.5 3.5 0 0 0 0 5M10.5 5.5a3.5 3.5 0 0 1 0 5M3.4 3.4a6.5 6.5 0 0 0 0 9.2M12.6 3.4a6.5 6.5 0 0 1 0 9.2"/>',
+    };
+    function icon(name, size = 14, weight = 1.5) {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "13"); svg.setAttribute("height", "13");
-        svg.innerHTML = '<path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" stroke="currentColor" stroke-width="1.4" fill="none" stroke-linejoin="round"/>';
+        for (const [k, v] of Object.entries({ viewBox: "0 0 16 16", width: size, height: size, fill: "none", stroke: "currentColor",
+            "stroke-width": weight, "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true", class: "wt-ico" })) svg.setAttribute(k, v);
+        svg.innerHTML = ICONS[name];
         return svg;
     }
+    const chatIcon = () => icon("chat", 13);
+    const focusIcon = () => icon("expand", 13);
+    const reloadIcon = () => icon("reload", 13);
+    const gearIcon = () => icon("gear", 16, 1.3);
     // 채팅 서랍 규칙: 서랍(손잡이·채팅)에 마우스가 들어오면 열리고, 서랍 밖으로 나가면 닫힌다.
     // 예외: 상단 바·선반으로 나간 경우는 열린 채 둔다(짧은 유예 안에 그쪽 pointerenter 가 오면 취소).
     // 서랍 이탈은 부모 문서의 pointerleave 로 잡으므로 채팅 iframe → 영상 iframe 으로 바로 넘어가도 닫힌다.
@@ -216,27 +247,9 @@
     function sideIcon(side) {
         const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("viewBox", "0 0 18 13"); svg.setAttribute("width", "18"); svg.setAttribute("height", "13"); svg.setAttribute("aria-hidden", "true");
-        const x = side === "left" ? 1.5 : 10.5;
-        svg.innerHTML = `<rect x="1" y="1" width="16" height="11" rx="2" fill="none" stroke="currentColor" stroke-width="1.3"/>`
-            + `<rect x="${x}" y="1.5" width="6" height="10" rx="1.3" fill="currentColor"/>`;
-        return svg;
-    }
-    function focusIcon() {
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "13"); svg.setAttribute("height", "13");
-        svg.innerHTML = '<path d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
-        return svg;
-    }
-    function reloadIcon() {
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "13"); svg.setAttribute("height", "13");
-        svg.innerHTML = '<path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round"/><path d="M13.5 2v3.5H10" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
-        return svg;
-    }
-    function gearIcon() {
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("viewBox", "0 0 16 16"); svg.setAttribute("width", "15"); svg.setAttribute("height", "15");
-        svg.innerHTML = '<circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4" stroke="currentColor" stroke-width="1.4" fill="none"/>';
+        const x = side === "left" ? 2.25 : 10.25;
+        svg.innerHTML = `<rect x="1" y="1" width="16" height="11" rx="2.6" fill="none" stroke="currentColor" stroke-width="1.3"/>`
+            + `<rect x="${x}" y="2.25" width="5.5" height="8.5" rx="1.4" fill="currentColor"/>`;
         return svg;
     }
 
@@ -245,12 +258,18 @@
         const drawer = el("aside", { class: "wt-drawer", id: "wt-drawer", "aria-label": t("roomSettings") }, [
             el("h2", {}, [
                 el("span", { text: t("roomSettings") }),
-                el("button", { class: "wt-btn", type: "button", onclick: toggleSettings, text: t("roomClose") }),
+                closeButton(toggleSettings),
             ]),
         ]);
-        // 상황실 전용 설정: 채팅 서랍. 왼쪽/오른쪽 버튼을 각각 누를 수 있는(다중 선택) 세그먼트 —
+        // 설정은 시스템 설정처럼 섹션 제목 + 둥근 그룹(행 사이 안쪽 구분선)으로 묶는다
+        let box;
+        const section = (key) => {
+            drawer.appendChild(el("div", { class: "wt-set-head", text: t(key) }));
+            box = drawer.appendChild(el("div", { class: "wt-set-group" }));
+        };
+        // 집중 보기 설정: 채팅 서랍. 왼쪽/오른쪽 버튼을 각각 누를 수 있는(다중 선택) 세그먼트 —
         // 하나만 켜면 그쪽, 둘 다 켜면 양쪽, 둘 다 끄면 서랍 없음. 현재 상태는 설명 줄에 쓴다.
-        drawer.appendChild(el("div", { class: "wt-set-head", text: t("roomTitle") }));
+        section("roomFocusMode");
         const sideSeg = el("div", { class: "wt-seg wt-chat-seg", id: "wt-chat-sides", role: "group", "aria-label": t("roomChatDock") });
         for (const side of CHAT_SIDES) {
             const key = side === "left" ? "roomChatLeft" : "roomChatRight";
@@ -261,7 +280,7 @@
                     render();
                 } }, [sideIcon(side), el("span", { text: t(key) })]));
         }
-        drawer.appendChild(el("div", { class: "wt-set-row wt-set-stack" }, [
+        box.appendChild(el("div", { class: "wt-set-row wt-set-stack" }, [
             el("span", { class: "wt-set-text" }, [
                 el("span", { class: "wt-set-label", text: t("roomChatDock") }),
                 el("span", { class: "wt-set-desc", id: "wt-chat-sides-desc", text: t("roomChatDockDesc") }),
@@ -272,7 +291,7 @@
         const delay = el("input", { type: "range", id: "wt-focus-delay", min: String(FOCUS_DELAY_MIN), max: String(FOCUS_DELAY_MAX), step: "100" });
         delay.addEventListener("input", () => { state.focusStepDelay = clampFocusDelay(Number(delay.value)); renderFocusDelaySetting(); });
         delay.addEventListener("change", () => browser.storage.local.set({ roomFocusStepDelay: clampFocusDelay(Number(delay.value)) }).catch(() => {}));
-        drawer.appendChild(el("div", { class: "wt-set-row wt-set-stack" }, [
+        box.appendChild(el("div", { class: "wt-set-row wt-set-stack" }, [
             el("span", { class: "wt-set-text" }, [
                 el("span", { class: "wt-set-label", text: t("roomFocusDelay") }),
                 el("span", { class: "wt-set-desc", id: "wt-focus-delay-desc", text: t("roomFocusDelayDesc") }),
@@ -286,7 +305,7 @@
             browser.storage.local.set({ roomFocusPauseOthers: park.checked }).catch(() => {});
             render();   // 집중 중이면 즉시 정지/재개
         });
-        drawer.appendChild(el("label", { class: "wt-set-row" }, [
+        box.appendChild(el("label", { class: "wt-set-row" }, [
             el("span", { class: "wt-set-text" }, [
                 el("span", { class: "wt-set-label", text: t("roomFocusPark") }),
                 el("span", { class: "wt-set-desc", text: t("roomFocusParkDesc") }),
@@ -298,7 +317,7 @@
             state.latency.auto = latAuto.checked;
             browser.storage.local.set({ roomLatencyAuto: latAuto.checked }).catch(() => {});
         });
-        drawer.appendChild(el("label", { class: "wt-set-row" }, [
+        box.appendChild(el("label", { class: "wt-set-row" }, [
             el("span", { class: "wt-set-text" }, [
                 el("span", { class: "wt-set-label", text: t("roomLatencyAuto") }),
                 el("span", { class: "wt-set-desc", text: t("roomLatencyAutoDesc") }),
@@ -308,13 +327,14 @@
         const thr = el("input", { type: "range", id: "wt-lat-threshold", min: String(LAT_THRESHOLD_MIN), max: String(LAT_THRESHOLD_MAX), step: "1" });
         thr.addEventListener("input", () => { state.latency.threshold = clampLatThreshold(Number(thr.value)); renderLatencySettings(); });
         thr.addEventListener("change", () => browser.storage.local.set({ roomLatencyThreshold: clampLatThreshold(Number(thr.value)) }).catch(() => {}));
-        drawer.appendChild(el("div", { class: "wt-set-row wt-set-stack" }, [
+        box.appendChild(el("div", { class: "wt-set-row wt-set-stack" }, [
             el("span", { class: "wt-set-text" }, [
                 el("span", { class: "wt-set-label", text: t("roomLatencyThreshold") }),
                 el("span", { class: "wt-set-desc", id: "wt-lat-threshold-desc", text: t("roomLatencyThresholdDesc") }),
             ]),
             thr,
         ]));
+        section("roomTitle");
         // 소리 평준화(PoC): 켬/끔 토글과 기준 음량 슬라이더. 값은 storage 에 두고 WT.watch 로 되돌아와 state 에 반영된다.
         const lvInput = el("input", { type: "checkbox", id: "wt-lv-on" });
         lvInput.addEventListener("change", () => {
@@ -322,7 +342,7 @@
             applyLevelerSetting();
             browser.storage.local.set({ roomLevelerEnabled: lvInput.checked }).catch(() => {});
         });
-        drawer.appendChild(el("label", { class: "wt-set-row" }, [
+        box.appendChild(el("label", { class: "wt-set-row" }, [
             el("span", { class: "wt-set-text" }, [
                 el("span", { class: "wt-set-label", text: t("roomLevelerLabel") }),
                 el("span", { class: "wt-set-desc", text: t("roomLevelerDesc") }),
@@ -332,7 +352,7 @@
         const range = el("input", { type: "range", id: "wt-lv-target", min: String(LEVEL_TARGET_MIN), max: String(LEVEL_TARGET_MAX), step: "1" });
         range.addEventListener("input", () => { state.leveler.target = Number(range.value); renderLevelerSettings(); levelApplyAll(); });   // 끌면서 바로 반영
         range.addEventListener("change", () => browser.storage.local.set({ roomLevelerTarget: Number(range.value) }).catch(() => {}));
-        drawer.appendChild(el("div", { class: "wt-set-row wt-set-stack" }, [
+        box.appendChild(el("div", { class: "wt-set-row wt-set-stack" }, [
             el("span", { class: "wt-set-text" }, [
                 el("span", { class: "wt-set-label", text: t("roomLevelerTarget") }),
                 el("span", { class: "wt-set-desc", id: "wt-lv-target-desc", text: t("roomLevelerTargetDesc") }),
@@ -340,7 +360,7 @@
             range,
         ]));
         for (const group of SETTINGS) {
-            drawer.appendChild(el("div", { class: "wt-set-head", text: t(group.section) }));
+            section(group.section);
             for (const item of group.items) {
                 const input = el("input", { type: "checkbox", "data-key": item.key });
                 // 저장 뒤 같은 탭의 구독자(예: 광고 건너뛰기)에게도 바로 알린다 — relay 는 자기 탭으로 안 돌아올 수 있다
@@ -348,7 +368,7 @@
                     const changes = { [item.key]: { newValue: input.checked } };
                     browser.storage.local.set({ [item.key]: input.checked }).then(() => WT.notify?.(changes)).catch(() => {});
                 });
-                drawer.appendChild(el("label", { class: "wt-set-row" }, [
+                box.appendChild(el("label", { class: "wt-set-row" }, [
                     el("span", { class: "wt-set-text" }, [
                         el("span", { class: "wt-set-label", text: t(item.label) }),
                         el("span", { class: "wt-set-desc", text: t(item.desc) }),
@@ -358,6 +378,11 @@
             }
         }
         return drawer;
+    }
+
+    // 원형 닫기 버튼(xmark): 설정 서랍·팔로우 패널 제목 줄 오른쪽
+    function closeButton(onclick) {
+        return el("button", { class: "wt-btn wt-icon wt-close", type: "button", title: t("roomClose"), "aria-label": t("roomClose"), onclick }, [icon("xmark", 10, 2)]);
     }
 
     function toggleSettings() {
@@ -623,8 +648,8 @@
         list.replaceChildren(...offline.map(ch => el("span", { class: "wt-chip", title: ch.name || ch.id }, [
             ch.image ? el("img", { src: ch.image, alt: "" }) : el("span", { class: "wt-chip-dot" }),
             el("span", { class: "wt-chip-name", text: ch.name || ch.id.slice(0, 8) }),
-            el("button", { class: "wt-chip-x", type: "button", title: t("roomRemove"), "aria-label": t("roomRemove"), text: "×",
-                onclick: () => removeChannel(ch.id) }),
+            el("button", { class: "wt-chip-x", type: "button", title: t("roomRemove"), "aria-label": t("roomRemove"),
+                onclick: () => removeChannel(ch.id) }, [icon("xmark", 8, 2.2)]),
         ])));
     }
 
@@ -634,7 +659,7 @@
         const n = onlineChannels().length;
         if (!state.fit || !n) { grid.style.removeProperty("--tile-w"); return; }
         const scroll = grid.parentElement;
-        const gap = 6, pad = 8;
+        const gap = 10, pad = 12;   // room.css 의 .wt-grid gap, .wt-scroll padding 과 같아야 한다
         const cols = gridColumns(n);
         const rows = Math.ceil(n / cols);
         const w = scroll.clientWidth - pad * 2, h = scroll.clientHeight - pad * 2;
@@ -702,8 +727,8 @@
                     onclick: (e) => { e.stopPropagation(); retryTile(ch.id, true); } }, [reloadIcon()]),
                 el("button", { class: "wt-btn wt-icon wt-focus-btn", type: "button", title: t("roomFocus"), "aria-label": t("roomFocus"),
                     onclick: (e) => { e.stopPropagation(); toggleFocus(ch.id); } }, [focusIcon()]),
-                el("button", { class: "wt-btn wt-icon wt-remove", type: "button", title: t("roomRemove"), "aria-label": t("roomRemove"), text: "×",
-                    onclick: (e) => { e.stopPropagation(); removeChannel(ch.id); } }),
+                el("button", { class: "wt-btn wt-icon wt-remove", type: "button", title: t("roomRemove"), "aria-label": t("roomRemove"),
+                    onclick: (e) => { e.stopPropagation(); removeChannel(ch.id); } }, [icon("xmark", 10, 2)]),
             ]),
             tilePlaceholder(ch),
             el("div", { class: "wt-offline", text: t("roomOffline") }),
@@ -1046,7 +1071,7 @@
         panel.innerHTML = "";
         panel.appendChild(el("h2", {}, [
             el("span", { text: t("roomAddFollow") }),
-            el("button", { class: "wt-btn", type: "button", onclick: closeOverlays, text: t("roomClose") }),
+            closeButton(closeOverlays),
         ]));
         const list = el("div", { class: "wt-follow-list" });
         panel.appendChild(list);

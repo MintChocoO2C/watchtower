@@ -80,6 +80,7 @@ background에 위임하는 공용 서비스를 추가할 때는 메시지 이름
 ## 컨벤션
 
 - **로깅**: 격리 세계에서는 `WT.log(tag, ...)`를 쓴다(디버그 플래그 중앙 관리). MAIN 세계(`page-script.js`)는 격리 세계와 분리되어 있어 자체 플래그 `window._wtDebug`로 `[WT]` 로그를 낸다.
+- **상황실 디자인**: Apple HIG(macOS) 기준. 색·재질은 `room.css` 상단 토큰(`--wt-*`: systemBlue 강조, 라벨/채움 계층, 유리 재질 `--wt-glass*`, 영상 위 HUD `--wt-hud*`)만 쓰고 값을 직접 박지 않는다. 아이콘은 `room.js` 의 `ICONS` + `icon(name, size, weight)`(SF Symbols 풍 16×16 선 아이콘)로 만들고 글자 기호(＋ ← × ‹)를 버튼에 쓰지 않는다. 설정 행은 `section()` 이 만든 `.wt-set-group` 에 넣는다. 격자 간격·여백을 바꾸면 `fitTiles` 의 `gap`/`pad` 도 같이 바꾼다. 버튼 기본 규칙은 `:where(.wt-room) button` 으로 우선순위를 0 으로 둔다(클래스 하나짜리 버튼 글자색을 덮던 버그).
 - **설정 추가**: 새 토글은 `room.js`의 `SETTINGS` 표 + `_locales`(ko 먼저, en) + 해당 기능 모듈의 `WT.watch`/`WT.load` 3곳을 함께 수정한다. 상황실 전용 설정(예: 채팅 서랍 좌/우 다중 선택 세그먼트)은 `buildSettingsDrawer` 에 행을 직접 만들고 `render()` 에서 현재 값을 표시한다. 세그먼트 버튼 갱신 시 선택자 범위를 한정할 것(`.wt-seg-btn` 전체를 잡으면 다른 세그먼트를 덮어쓴다 — 겪은 버그). 팝업은 없다.
 - **Git/브랜치**: Git Flow 접두어를 쓴다. 형식은 `<종류>/<범위>-<요약>`.
   - `feature/` 새 기능·기능 확장 (예: `feature/room-empty-state`)
